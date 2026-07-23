@@ -1,0 +1,748 @@
+---
+title: "Exploratory Visualization of Fraud Risk Patterns in Bank Transaction Data"
+affiliation:
+  wide: true
+  author_multiline:
+    - line:
+        - name: "Ngoc Khanh Vy Huynh, Student Number: 0908036"
+    - line:
+        - name: "Keyao Li, Student Number: 0895585"
+abstract: |
+  Bank transaction fraud is difficult to examine because fraudulent observations are rare and risk patterns may differ across transaction contexts. This paper uses exploratory data analysis and visualization to investigate which transaction characteristics show visible associations with fraud risk in a synthetic dataset of one million bank transactions. The analysis combines descriptive summaries, within-group fraud-rate comparisons, distribution plots, and a merchant-by-hour heatmap. Fraud accounts for 55,255 transactions, or 5.53% of the full dataset, creating a strongly imbalanced outcome. The clearest visual patterns involve repeated failed attempts, late-night and early-morning timing, international transaction status, recent PIN changes, and merchant category. Transactions with two or more failed attempts have substantially higher fraud rates, while ATM withdrawal, jewelry, and crypto exchange transactions appear elevated across multiple hours. In contrast, weekend status, account balance, and city-level variation provide weaker or more cautionary visual separation. Visualization therefore identifies candidate fraud-risk indicators before predictive modeling, although all findings are associative and based on synthetic data.
+keywords: "bank transaction fraud, exploratory data analysis, data visualization, class imbalance, fraud rate"
+output:
+  rticles::ieee_article:
+    keep_tex: true
+    with_dblfloatfix: true
+    citation_package: natbib
+bibliography: references.bib
+biblio-style: IEEEtran
+natbiboptions: "numbers"
+link-citations: true
+header-includes:
+  - \usepackage[section]{placeins}
+---
+
+<!--
+TODO BEFORE FINAL SUBMISSION
+1. Add the verified Kaggle dataset title, creator, URL, license, and access date.
+2. Confirm author affiliations and email addresses required by the course.
+3. Verify figure legibility and the final page count in the IEEE template.
+-->
+
+```{r setup, include=FALSE}
+suppressPackageStartupMessages({
+  library(tidyverse)
+  library(ggplot2)
+  library(scales)
+  library(patchwork)
+  library(janitor)
+  library(knitr)
+  library(kableExtra)
+})
+
+source("src/helper_functions.R")
+
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  fig.align = "center",
+  dpi = 300
+)
+
+theme_set(paper_theme())
+fraud_colours <- c("Non-fraud" = "#4C78A8", "Fraud" = "#E45756")
+```
+
+```{r read-and-prepare-data, include=FALSE}
+data_choice <- choose_transaction_data()
+transactions_raw <- readr::read_csv(data_choice$path, show_col_types = FALSE)
+df <- prepare_transactions(transactions_raw)
+using_sample_only <- data_choice$using_sample
+
+sample_path <- "data/sample_transactions.csv"
+if (file.exists(sample_path)) {
+  sample_df <- readr::read_csv(sample_path, show_col_types = FALSE) |>
+    prepare_transactions()
+} else {
+  set.seed(123)
+  sample_df <- df |>
+    dplyr::filter(is_fraud %in% c(0L, 1L)) |>
+    dplyr::group_by(is_fraud) |>
+    dplyr::slice_sample(n = min(1000L, dplyr::n())) |>
+    dplyr::ungroup()
+}
+
+dataset_summary <- df |>
+  dplyr::summarise(
+    transactions = dplyr::n(),
+    variables = ncol(transactions_raw),
+    fraud = sum(is_fraud == 1L, na.rm = TRUE),
+    non_fraud = sum(is_fraud == 0L, na.rm = TRUE),
+    fraud_rate = mean(is_fraud == 1L, na.rm = TRUE)
+  )
+
+overall_fraud_rate <- dataset_summary$fraud_rate
+
+missing_count <- sum(is.na(df))
+duplicate_transaction_ids <- if ("transaction_id" %in% names(df)) {
+  sum(duplicated(df$transaction_id))
+} else {
+  NA_integer_
+}
+duplicate_rows <- sum(duplicated(df))
+
+invalid_values <- tibble::tibble(
+  check = c(
+    "customer_age < 18",
+    "transaction_amount <= 0",
+    "account_balance < 0",
+    "credit_score outside 300--850",
+    "hour_of_day outside 0--23",
+    "failed_attempts < 0"
+  ),
+  count = c(
+    if ("customer_age" %in% names(df)) sum(df$customer_age < 18, na.rm = TRUE) else NA,
+    if ("transaction_amount" %in% names(df)) sum(df$transaction_amount <= 0, na.rm = TRUE) else NA,
+    sum(df$account_balance < 0, na.rm = TRUE),
+    if ("credit_score" %in% names(df)) {
+      sum(df$credit_score < 300 | df$credit_score > 850, na.rm = TRUE)
+    } else NA,
+    sum(df$hour_of_day < 0 | df$hour_of_day > 23, na.rm = TRUE),
+    sum(df$failed_attempts < 0, na.rm = TRUE)
+  )
+)
+```
+
+```{r sample-warning, results="asis"}
+if (using_sample_only) {
+  cat(
+    "> **Demonstration-data warning:** `data/transactions.csv` was not found. ",
+    "This render uses the balanced sample only. Its figures demonstrate the ",
+    "code workflow and must not be interpreted as population prevalence.\n\n"
+  )
+}
+```
+
+# Introduction
+
+Transaction fraud monitoring is important because suspicious activity must be
+identified within a large volume of legitimate banking transactions. A central
+challenge is class imbalance: fraudulent transactions usually form a small
+minority, so raw counts can obscure meaningful differences between transaction
+groups. A second challenge is interpretability. Before developing a predictive
+model, analysts need to understand whether observable transaction
+characteristics display stable and communicable patterns.
+
+Exploratory data analysis (EDA) supports this early stage by summarizing data
+quality, revealing skewed distributions, and comparing fraud rates across
+behavioural and contextual variables. Visual analysis does not establish
+causation, but it can identify candidate indicators for later statistical
+testing or predictive modeling. It is also useful for communication: analysts,
+risk managers, and other stakeholders can inspect whether an apparent pattern
+is consistent across groups or driven by class size, skewness, or a small
+subset of observations.
+
+This paper asks: *Which transaction characteristics show visible associations
+with fraud risk in bank transaction data?* Its contribution is a focused visual
+comparison across authentication behaviour, transaction timing, international
+status, recent PIN changes, merchant context, and selected numerical variables.
+Because fraud is uncommon, the analysis emphasizes within-group rates and
+proportions rather than raw fraud counts. This paper follows the project
+proposal's exploratory scope by prioritizing exploratory visualization over
+predictive modeling. Although the proposal mentioned that a simple classifier
+could be developed if time permitted, the primary objective was to identify and
+explain visible fraud-risk patterns through EDA. The analysis therefore
+establishes a reproducible evidence base for describing candidate variables and
+interactions without making causal or predictive claims.
+
+The remainder of the paper reviews relevant fraud-detection and imbalanced-data
+research, describes the dataset and reproducible EDA methodology, reports
+univariate, bivariate, and multivariate visual findings, and concludes with
+practical implications, limitations, and directions for validation.
+
+# Previous Work
+
+Fraud-detection research has examined transaction behaviour, authentication
+signals, temporal activity, and contextual variables as possible inputs to
+monitoring systems [@abdallah2016]. Anomaly-detection research considers how
+rare observations can be distinguished from dominant normal behaviour
+[@chandola2009]. Research on imbalanced learning also shows why overall accuracy
+and raw counts are inadequate when the positive class is uncommon [@he2009].
+
+The imbalance problem is especially important in financial transaction data.
+When legitimate transactions greatly outnumber fraudulent ones, a method can
+appear accurate while failing to identify the minority class. Recent fraud
+detection research therefore emphasizes resampling, minority-class synthesis,
+ensemble methods, and precision-recall-oriented evaluation
+[@fiore2019; @kennedy2024; @bekereci2024]. These studies are primarily
+predictive, but their motivation also applies to EDA: population counts and
+balanced-sample proportions answer different questions and must not be
+interchanged.
+
+Fraud observations may also overlap substantially with legitimate behaviour.
+Li *et al.* describe the combination of class imbalance and class overlap as a
+central challenge because fraudulent transactions are often designed to
+resemble ordinary activity [@li2021]. This supports examining multiple
+dimensions rather than expecting one variable to separate the classes.
+Authentication behaviour, transaction context, timing, and merchant type may
+jointly carry more information than an isolated financial amount.
+
+EDA complements predictive methods by exposing distributions, group
+differences, and possible interactions before a model is fitted
+[@tukey1977]. Bar charts can compare categorical rates, distribution plots can
+show overlap, and heatmaps can expose patterns across contextual dimensions.
+However, many fraud studies move quickly to classifier comparison. The present
+study instead emphasizes a transparent visual workflow that distinguishes
+population-rate figures from balanced-sample figures and reports both strong
+and weak patterns. This study remains exploratory: it identifies visible
+candidate patterns but does not estimate causal effects or claim predictive
+performance.
+
+# Methodology
+
+## Dataset and Variables
+
+The full synthetic dataset was obtained from the *Bank Transaction Fraud
+Detection Dataset* hosted on Kaggle [@kaggleBankFraud]. It contains 1,000,000
+transactions and 26 variables.
+The binary outcome, `is_fraud`, equals one for a fraudulent transaction and zero
+otherwise. The full dataset contains 55,255 fraudulent and 944,745
+non-fraudulent transactions, corresponding to an overall fraud rate of 5.53%.
+
+```{r table-dataset-summary, results="asis"}
+summary_display <- dataset_summary |>
+  dplyr::transmute(
+    Transactions = scales::comma(transactions),
+    Variables = variables,
+    Fraud = scales::comma(fraud),
+    `Non-fraud` = scales::comma(non_fraud),
+    `Fraud rate` = scales::percent(fraud_rate, accuracy = 0.01)
+  )
+
+knitr::kable(
+  summary_display,
+  format = "latex",
+  booktabs = TRUE,
+  caption = if (using_sample_only) {
+    "Active demonstration sample summary"
+  } else {
+    "Full transaction dataset summary"
+  }
+) |>
+  kableExtra::kable_styling(
+    full_width = FALSE,
+    latex_options = c("hold_position", "scale_down")
+  )
+```
+
+Variables examined include transaction type, hour of day, night and weekend
+indicators, merchant category, failed attempts, account balance, distance from
+home, city, and recent PIN change. Full-data summaries and fraud-rate
+calculations are used whenever `data/transactions.csv` is available.
+
+The variables can be organized into four conceptual groups. Transaction context
+includes domestic or international status, merchant category, payment method,
+device type, and location. Temporal context includes hour, night status, and
+weekend status. Authentication and account context includes failed attempts,
+recent PIN change, account balance, and credit-related fields. The binary
+outcome `is_fraud` provides the common basis for comparing these groups.
+
+## Data Preparation
+
+Column names were standardized, the binary outcome was converted to integer
+form, and readable factors were created for Fraud/Non-fraud,
+International/Domestic, Night/Day, Weekend/Weekday, and PIN Changed/No PIN
+Change. Data-quality checks covered missingness, repeated identifiers,
+duplicate complete rows, and invalid ranges for selected key variables. In the
+full dataset, these checks found no missing values, duplicate transaction IDs,
+duplicate rows, or invalid values, so no removal or imputation was required.
+
+A balanced sample containing 1,000 fraud and 1,000 non-fraud observations is
+used only for compact code submission and the grouped failed-attempt
+distribution. Because it is deliberately balanced, it cannot estimate
+population prevalence.
+
+## Reproducible Analysis Workflow
+
+The paper is written as an executable R Markdown document. The document reads
+the CSV data, standardizes variables, calculates every displayed summary, and
+generates each figure during rendering. Supporting functions are stored in a
+small sourced R file. No static screenshot is used as an analytical result.
+This design makes the relationship among data, calculations, figures, and
+written interpretations auditable.
+
+The full dataset is used for counts and fraud-rate estimates. The small balanced
+sample is used only where equal group sizes make distributional shapes easier
+to compare and where a runnable submission sample is required. Every
+sample-based caption explicitly warns that its shares do not estimate
+population prevalence. This separation prevents the 50% fraud share of the
+balanced sample from being confused with the 5.53% fraud rate in the full data.
+
+## Analytical Measures
+
+For each category, the descriptive fraud rate is the number of fraudulent
+transactions divided by the total number of transactions in that category.
+Within-group sample proportions are calculated separately for fraud and
+non-fraud cases so that the majority class does not dominate a distribution
+plot. The city comparison includes approximate 95% intervals to communicate
+sampling uncertainty. Because the city figure uses a balanced sample rather
+than a simple random population sample, those intervals are descriptive and
+should not be interpreted as population estimates.
+
+## Visualization Strategy
+
+Bar charts compare rates across binary and categorical variables. Within-group
+proportions compare failed-attempt distributions without being dominated by
+class size. A heatmap combines hour of day and merchant category. For grouped
+full-data comparisons, total transactions, fraud counts, and fraud rates are
+calculated directly from `df`. Findings are described as visual associations,
+not causal effects.
+
+# Exploratory Data Analysis Design
+
+The EDA proceeded in three stages. First, univariate checks established dataset
+size, class balance, variable ranges, missingness, and duplicate status. This
+stage determined whether cleaning or imputation was necessary and revealed the
+extent of outcome imbalance. Second, bivariate comparisons evaluated how fraud
+rates or within-group distributions changed across transaction type, time of
+day, recent PIN change, weekend status, failed attempts, account balance, and
+city. Third, a multivariate heatmap combined merchant category with hour of day
+to determine whether two contextual dimensions revealed patterns hidden by
+separate marginal summaries.
+
+The visual encodings were selected for the measurement scale and analytical
+question. Counts are appropriate for showing class imbalance; rate bars support
+fair categorical comparisons; a mosaic plot displays both transaction-type
+frequency and within-type composition; grouped bars preserve the discrete
+nature of failed attempts; violin and box plots show density, median, and
+overlap; and a heatmap displays a two-dimensional rate surface. This staged
+design supports interpretation without presenting EDA as proof of causality or
+predictive accuracy.
+
+# Results
+
+## Outcome Imbalance and Dataset Context
+
+```{r fig-class-imbalance, fig.pos="!htbp", fig.width=3.45, fig.height=2.55, out.width="\\columnwidth", fig.cap="Class distribution of transaction status. Fraud represents 5.53% of the full dataset, indicating a highly imbalanced outcome."}
+class_counts <- df |>
+  dplyr::count(fraud_label, name = "transactions")
+
+p_class <- ggplot(class_counts, aes(fraud_label, transactions, fill = fraud_label)) +
+  geom_col(width = 0.64, show.legend = FALSE) +
+  geom_text(
+    aes(label = scales::comma(transactions)),
+    vjust = -0.35,
+    size = 3
+  ) +
+  scale_fill_manual(values = fraud_colours) +
+  scale_y_continuous(
+    labels = scales::label_number(big.mark = ","),
+    expand = expansion(mult = c(0, 0.10))
+  ) +
+  labs(x = "Transaction status", y = "Transactions")
+
+p_class
+```
+
+Fraud is a minority outcome: the full-data rate is 5.53%, and the non-fraud
+class is more than seventeen times larger. Consequently, later comparisons use
+within-group fraud rates rather than raw counts. The data-quality assessment
+found no missing values, duplicate transaction identifiers, duplicate complete
+rows, or out-of-range values among the checked fields. Therefore, the observed
+patterns are not artifacts of an imputation or row-removal procedure.
+
+## Transaction Type and Sample Composition
+
+```{r fig-transaction-type-mosaic, fig.pos="!htbp", fig.width=3.45, fig.height=2.75, out.width="\\columnwidth", fig.cap="Transaction type and fraud-group membership in the balanced sample. Rectangle widths reflect sample counts; sample shares do not estimate population prevalence."}
+transaction_mosaic <- sample_df |>
+  dplyr::filter(!is.na(transaction_type), !is.na(fraud_label)) |>
+  dplyr::count(transaction_type, fraud_label, name = "n") |>
+  dplyr::group_by(transaction_type) |>
+  dplyr::mutate(
+    type_total = sum(n),
+    share = n / type_total,
+    ymax = cumsum(share),
+    ymin = dplyr::lag(ymax, default = 0)
+  ) |>
+  dplyr::ungroup()
+
+type_widths <- transaction_mosaic |>
+  dplyr::distinct(transaction_type, type_total) |>
+  dplyr::arrange(transaction_type) |>
+  dplyr::mutate(
+    xmax = cumsum(type_total) / sum(type_total),
+    xmin = dplyr::lag(xmax, default = 0),
+    xmid = (xmin + xmax) / 2
+  )
+
+transaction_mosaic <- transaction_mosaic |>
+  dplyr::left_join(type_widths, by = c("transaction_type", "type_total")) |>
+  dplyr::mutate(
+    label = paste0(
+      fraud_label, "\n",
+      "n=", n, "\n",
+      scales::percent(share, accuracy = 0.1)
+    )
+  )
+
+ggplot(transaction_mosaic) +
+  geom_rect(
+    aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = fraud_label),
+    colour = "white", linewidth = 0.45
+  ) +
+  geom_text(
+    aes(x = xmid, y = (ymin + ymax) / 2, label = label),
+    colour = "white", size = 2.4, fontface = "bold"
+  ) +
+  scale_fill_manual(values = fraud_colours, guide = "none") +
+  scale_x_continuous(
+    breaks = type_widths$xmid,
+    labels = paste0(type_widths$transaction_type, "\n(n=", type_widths$type_total, ")"),
+    expand = c(0, 0)
+  ) +
+  scale_y_continuous(labels = scales::label_percent(), expand = c(0, 0)) +
+  labs(x = "Transaction type", y = "Within-type sample composition") +
+  theme(panel.grid = element_blank(), axis.text.x = element_text(size = 7))
+```
+
+Within the balanced sample, international transactions contain a larger fraud
+share than domestic transactions. Because fraud and non-fraud cases were sampled
+equally, this figure describes sample composition and is not a population fraud
+rate. Specifically, fraud represents 68.1% of sampled international
+transactions but 45.1% of sampled domestic transactions. The difference is
+directionally consistent with the full-data international fraud-rate result,
+but the percentages in Fig. 2 must remain sample-composition measures.
+
+## Binary Transaction Characteristics
+
+```{r fig-binary-characteristics, fig.pos="!htbp", fig.width=3.45, fig.height=4.35, out.width="\\columnwidth", fig.cap="Fraud rates across selected binary transaction characteristics. Night transactions and recent PIN changes show higher fraud rates, while weekend status shows little separation."}
+binary_plot <- function(data, variable, title) {
+  rate_data <- fraud_rate_by(data, {{ variable }})
+
+  ggplot(rate_data, aes({{ variable }}, fraud_rate, fill = {{ variable }})) +
+    geom_col(width = 0.65, show.legend = FALSE) +
+    geom_text(
+      aes(label = scales::percent(fraud_rate, accuracy = 0.01)),
+      vjust = -0.30,
+      size = 2.7
+    ) +
+    scale_y_continuous(
+      labels = scales::label_percent(accuracy = 0.1),
+      limits = c(0, max(rate_data$fraud_rate) * 1.24),
+      expand = expansion(mult = c(0, 0))
+    ) +
+    scale_fill_manual(values = c("#4C78A8", "#E45756")) +
+    labs(title = title, x = NULL, y = "Fraud rate") +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 9),
+      axis.text.x = element_text(size = 7.5, angle = 10, hjust = 1)
+    )
+}
+
+binary_panels <- list(
+  binary_plot(df, time_of_day, "Time of Day"),
+  binary_plot(df, pin_change_status, "PIN Change Status"),
+  binary_plot(df, weekend_status, "Weekend Status")
+)
+
+patchwork::wrap_plots(binary_panels, ncol = 1) +
+  patchwork::plot_annotation(tag_levels = "A")
+```
+
+Night transactions and transactions following a recent PIN change show visibly
+higher fraud rates than their comparison groups. Night transactions have a
+7.96% fraud rate compared with 4.07% during the day. Transactions following a
+recent PIN change reach 8.36%, compared with 5.28% when no recent change is
+recorded. Weekend and weekday rates are nearly equal at 5.57% and 5.51%,
+respectively. This contrast is useful because it shows that not every intuitive
+context variable separates fraud. These differences are candidate visual
+indicators, not evidence of causation.
+
+## Authentication-Related Patterns
+
+```{r fig-failed-attempts, fig.pos="!htbp", fig.width=3.45, fig.height=2.8, out.width="\\columnwidth", fig.cap="Discrete failed-attempt distributions by sampled fraud group. Proportions are calculated separately within each 1,000-observation group."}
+failed_distribution <- sample_df |>
+  dplyr::filter(!is.na(failed_attempts), !is.na(fraud_label)) |>
+  dplyr::count(fraud_label, failed_attempts, name = "transactions") |>
+  dplyr::group_by(fraud_label) |>
+  dplyr::mutate(proportion = transactions / sum(transactions)) |>
+  dplyr::ungroup()
+
+ggplot(
+  failed_distribution,
+  aes(factor(failed_attempts), proportion, fill = fraud_label)
+) +
+  geom_col(position = position_dodge(width = 0.78), width = 0.70) +
+  geom_text(
+    aes(
+      label = paste0("n=", transactions, "\n",
+                     scales::percent(proportion, accuracy = 0.1))
+    ),
+    position = position_dodge(width = 0.78),
+    vjust = -0.15,
+    size = 2.1
+  ) +
+  scale_fill_manual(values = fraud_colours, name = NULL) +
+  scale_y_continuous(
+    labels = scales::label_percent(accuracy = 1),
+    expand = expansion(mult = c(0, 0.14))
+  ) +
+  labs(x = "Failed attempts", y = "Within-group proportion")
+```
+
+The balanced-sample comparison shows that fraud observations contain a larger
+share of transactions with two or more failed attempts. This distribution is
+consistent with the full-data result that fraud rates rise sharply beyond one
+attempt. Because the plot uses within-group sample proportions, it describes
+group composition rather than population prevalence. In the sample, 81.0% of
+non-fraud observations have zero failed attempts, compared with 64.6% of fraud
+observations. Conversely, two attempts account for 13.6% of fraud observations
+but only 4.6% of non-fraud observations. Similar, smaller gaps continue from
+three through five attempts, producing the clearest ordered behavioural pattern
+in the analysis.
+
+## Account Balance and Geographic Variation
+
+```{r fig-account-balance, fig.pos="!htbp", fig.width=3.45, fig.height=2.75, out.width="\\columnwidth", fig.cap="Account-balance distributions by sampled fraud group. Violin width shows density and the inset boxes show the median and interquartile range."}
+balance_summary <- sample_df |>
+  dplyr::filter(!is.na(account_balance), !is.na(fraud_label)) |>
+  dplyr::group_by(fraud_label) |>
+  dplyr::summarise(
+    n = dplyr::n(),
+    median_balance = stats::median(account_balance),
+    .groups = "drop"
+  )
+
+ggplot(sample_df, aes(fraud_label, log1p(account_balance), fill = fraud_label)) +
+  geom_violin(trim = FALSE, alpha = 0.58, show.legend = FALSE) +
+  geom_boxplot(
+    width = 0.13, outlier.shape = NA, fill = "white",
+    colour = "#333333", linewidth = 0.35
+  ) +
+  geom_text(
+    data = balance_summary,
+    aes(
+      x = fraud_label,
+      y = min(log1p(sample_df$account_balance), na.rm = TRUE),
+      label = paste0("n=", n, "\nmedian=$", scales::comma(round(median_balance)))
+    ),
+    inherit.aes = FALSE, vjust = 1.15, size = 2.2
+  ) +
+  scale_fill_manual(values = fraud_colours) +
+  labs(x = "Sample group", y = "Log account balance")
+```
+
+The fraud group has a somewhat higher median balance in the balanced sample,
+but the distributions overlap substantially. Account balance therefore provides
+weaker standalone separation than failed attempts or transaction context. The
+sample median is approximately \$8,157 for fraud and \$7,390 for non-fraud, but
+the interquartile ranges and violin densities occupy much of the same region.
+This is a useful negative result: a shift in central tendency does not imply
+that the variable is an effective standalone discriminator.
+
+```{r fig-city-sample, fig.pos="!htbp", fig.width=3.45, fig.height=4.0, out.width="\\columnwidth", fig.cap="Sample fraud share by city with approximate 95% confidence intervals. The balanced sample is descriptive and does not estimate city-level population prevalence."}
+city_sample_rates <- sample_df |>
+  dplyr::filter(!is.na(city), !is.na(is_fraud)) |>
+  dplyr::group_by(city) |>
+  dplyr::summarise(
+    n = dplyr::n(),
+    fraud_share = mean(is_fraud == 1L),
+    se = sqrt(fraud_share * (1 - fraud_share) / n),
+    lower = pmax(0, fraud_share - 1.96 * se),
+    upper = pmin(1, fraud_share + 1.96 * se),
+    .groups = "drop"
+  ) |>
+  dplyr::filter(n >= 20) |>
+  dplyr::arrange(fraud_share) |>
+  dplyr::mutate(city = forcats::fct_reorder(city, fraud_share))
+
+ggplot(city_sample_rates, aes(fraud_share, city)) +
+  geom_vline(
+    xintercept = mean(sample_df$is_fraud == 1L),
+    colour = "#999999", linetype = "dotted", linewidth = 0.45
+  ) +
+  geom_errorbarh(aes(xmin = lower, xmax = upper), height = 0, colour = "#555555") +
+  geom_point(colour = "#E45756", size = 1.7) +
+  geom_text(
+    aes(x = upper, label = paste0(" n=", n)),
+    hjust = -0.08, size = 1.9, colour = "#5E6E86"
+  ) +
+  scale_x_continuous(
+    labels = scales::label_percent(accuracy = 1),
+    expand = expansion(mult = c(0.03, 0.20))
+  ) +
+  labs(x = "Fraud share in balanced sample", y = "City") +
+  theme(axis.text.y = element_text(size = 6.5))
+```
+
+City-level sample shares vary, but the uncertainty intervals overlap widely.
+The city comparison is therefore treated as a weak descriptive pattern rather
+than a basis for geographic risk claims. The ordering ranges from higher sample
+shares in Osaka and Guadalajara to lower shares in New York and Berlin, yet
+most cities contain roughly 80--115 sample observations. The associated
+uncertainty and synthetic nature of the locations make substantive geographic
+interpretation inappropriate.
+
+## Merchant and Time-Based Patterns
+
+```{r fig-multivariate-patterns, fig.env="figure*", fig.pos="!t", fig.width=7.1, fig.height=5.8, out.width="0.94\\textwidth", fig.cap="Multivariate fraud patterns: (A) hourly fraud rates for domestic and international transactions and (B) merchant-category fraud rates across hours."}
+hour_transaction_rates <- df |>
+  dplyr::filter(
+    !is.na(hour_of_day),
+    !is.na(transaction_type),
+    !is.na(is_fraud)
+  ) |>
+  dplyr::group_by(hour_of_day, transaction_type) |>
+  dplyr::summarise(
+    total_transactions = dplyr::n(),
+    fraud_count = sum(is_fraud == 1L),
+    fraud_rate = mean(is_fraud == 1L),
+    .groups = "drop"
+  )
+
+p_hour_transaction <- ggplot(
+  hour_transaction_rates,
+  aes(hour_of_day, fraud_rate, colour = transaction_type)
+) +
+  geom_line(linewidth = 0.85) +
+  geom_point(size = 1.25) +
+  scale_colour_manual(
+    values = c("Domestic" = "#4C78A8", "International" = "#E45756"),
+    name = NULL
+  ) +
+  scale_x_continuous(breaks = seq(0, 23, 3)) +
+  scale_y_continuous(labels = scales::label_percent(accuracy = 0.1)) +
+  labs(x = "Hour of day", y = "Fraud rate") +
+  theme(legend.position = "top")
+
+merchant_hour_rates <- df |>
+  dplyr::filter(
+    !is.na(hour_of_day),
+    !is.na(merchant_category),
+    !is.na(is_fraud)
+  ) |>
+  dplyr::group_by(merchant_category, hour_of_day) |>
+  dplyr::summarise(
+    total_transactions = dplyr::n(),
+    fraud_count = sum(is_fraud == 1L),
+    fraud_rate = mean(is_fraud == 1L),
+    .groups = "drop"
+  )
+
+p_merchant_hour <- ggplot(
+  merchant_hour_rates,
+  aes(hour_of_day, forcats::fct_rev(merchant_category), fill = fraud_rate)
+) +
+  geom_tile(colour = "white", linewidth = 0.12) +
+  scale_x_continuous(breaks = seq(0, 23, 3), expand = c(0, 0)) +
+  scale_fill_gradient(
+    low = "#17324D",
+    high = "#56B1F7",
+    labels = scales::label_percent(accuracy = 0.1)
+  ) +
+  labs(x = "Hour of day", y = "Merchant category", fill = "Fraud rate") +
+  theme(axis.text.y = element_text(size = 7))
+
+p_hour_transaction / p_merchant_hour +
+  patchwork::plot_layout(heights = c(0.9, 1.25)) +
+  patchwork::plot_annotation(tag_levels = "A")
+```
+
+Panel A shows that international transactions have higher fraud rates than
+domestic transactions across most hours within this synthetic dataset. Both
+series also rise during late-night and early-morning periods. Panel B adds
+merchant context: ATM withdrawal, jewelry, and crypto exchange remain visually
+elevated across several hours, whereas most other categories cluster at lower
+rates. Aggregated across hours, the three highlighted categories have fraud
+rates of approximately 8.65--8.74%, compared with roughly 4.62--4.84% for most
+other merchant categories. Together, the panels show an exploratory pattern in
+which transaction timing, international status, and merchant context are
+visually associated with different fraud rates. These associations are
+candidate indicators within the synthetic dataset, not causal evidence.
+
+## Summary of Visual Findings
+
+The strongest visible associations involve repeated failed attempts,
+late-night and early-morning timing, international status, recent PIN changes,
+and merchant category. Account balance, weekend status, payment method, device
+type, distance from home, and city-level variation show weaker separation or
+require cautious interpretation.
+
+Additional variables mentioned in the proposal, including payment method,
+device type, transaction amount, distance from home, and other location-related
+fields, were inspected during EDA; however, they showed weaker or less central
+visual separation and are therefore summarized rather than displayed as main
+figures within the IEEE page limit.
+
+# Discussion
+
+## Interpretation and Practical Relevance
+
+EDA identifies candidate features, reveals the effect of class imbalance, and
+shows which variables have limited standalone separation. Stronger patterns
+could inform feature selection, monitoring rules, interactions, or later
+predictive experiments. Visual prominence alone does not establish statistical
+significance or operational usefulness.
+
+The results suggest a hierarchy of candidate information. Authentication
+behaviour is represented by failed attempts and recent PIN change; transaction
+context is represented by international status and merchant category; and
+temporal context is represented by night or early-morning activity. These
+signals are interpretable and can be reviewed by a human analyst. In contrast,
+weekend status, account balance, and city provide weaker separation. Including
+weak results is important because an EDA should narrow the candidate set rather
+than merely collect visually interesting charts.
+
+For an operational fraud-monitoring workflow, the findings could motivate
+rules or model features such as an indicator for two or more failed attempts,
+an interaction between merchant category and hour, or additional review when a
+recent PIN change coincides with an unusual context. Such uses would require
+validation on out-of-sample real transactions, threshold selection based on
+false-positive costs, and continuous monitoring for changing fraud behaviour.
+The figures should therefore be viewed as hypothesis-generating tools, not as
+decision rules.
+
+## Limitations
+
+The dataset is synthetic, so the findings describe patterns within this dataset
+rather than verified real-world banking behaviour. Location variables are
+treated as categorical features, not validated geographic relationships. EDA
+cannot establish causation, and deliberately balanced sample plots cannot
+estimate population prevalence. The associations should be validated with
+statistical analysis and predictive evaluation that accounts for class
+imbalance.
+
+The analysis is also cross-sectional. It does not examine how relationships
+change across days, customers, or evolving fraud strategies. Aggregated rates
+may hide repeated activity by the same account, and confidence intervals shown
+for the balanced city sample do not correct for its case-control sampling
+design. Finally, no classifier, train-test split, or cost-sensitive evaluation
+is included because the proposal identified modeling only as an optional
+extension if time permitted, while the primary deliverable remained EDA and
+visualization.
+
+# Conclusions
+
+This paper used code-generated exploratory visualizations to examine which bank
+transaction characteristics show visible associations with fraud risk. Fraud
+represents 5.53% of the full dataset, making rate-based comparisons essential.
+Repeated failed attempts, night and early-morning timing, international status,
+recent PIN changes, and merchant category provide the clearest visual patterns.
+Weekend status, account balance, and city-level variation are weaker or more
+cautionary findings.
+
+The study demonstrates why visual design and sampling language matter in an
+imbalanced problem. Full-data rates describe prevalence, while balanced-sample
+figures describe group composition and distributional differences. Maintaining
+this distinction prevents overstated conclusions and makes the analysis
+reproducible.
+
+Future work should validate these exploratory patterns using independent or
+real transaction data and examine whether the visible relationships remain
+stable over time. Predictive modeling may be considered as a separate extension
+after the exploratory findings are validated; it is not part of the present
+paper's contribution.
+
+# References
