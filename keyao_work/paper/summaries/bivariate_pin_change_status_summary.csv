@@ -1,0 +1,3 @@
+pin_change_status,total_transactions,fraud_count,fraud_rate
+No Recent PIN Change,919561,48527,0.05277192051424538
+Recent PIN Change,80439,6728,0.08364101990328075

@@ -1,0 +1,2 @@
+total_transactions,fraud_count,non_fraud_count,fraud_rate
+1000000,55255,944745,0.055255
