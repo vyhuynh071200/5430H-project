@@ -38,6 +38,7 @@ knitr::opts_chunk$set(
 <!-- Placeholder: Describe the sample dataset, relevant variables, and analysis scope. -->
 
 # Customer Profile Analysis
+## Customer Age
 
 Customer age is explored as a foundational customer-profile characteristic.
 This descriptive comparison examines whether age distributions differ between
@@ -113,6 +114,146 @@ groups in a sample balanced by design. It is intended only for descriptive
 comparison and should not be used to draw causal conclusions or estimate
 population fraud prevalence.
 
+## Credit Score
+Credit score is examined as a customer financial-profile characteristic. Comparing credit-score distributions across fraud-status groups provides a descriptive view of whether fraudulent and non-fraudulent transactions are associated with different credit-score patterns in the balanced analysis sample.
+
+```{r credit-score-summary}
+credit_score_data <- read_csv(
+  input_data_path,
+  col_select = c(credit_score, is_fraud),
+  show_col_types = FALSE
+) %>%
+  mutate(
+    fraud_status = factor(
+      if_else(is_fraud == 1, "Fraud", "Non-fraud"),
+      levels = c("Non-fraud", "Fraud")
+    )
+  )
+
+credit_score_summary <- credit_score_data %>%
+  group_by(fraud_status) %>%
+  summarise(
+    sample_size = n(),
+    mean_score = mean(credit_score, na.rm = TRUE),
+    med_score = median(credit_score, na.rm = TRUE),
+    std_score = sd(credit_score, na.rm = TRUE),
+    min_score = min(credit_score, na.rm = TRUE),
+    max_score = max(credit_score, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+knitr::kable(
+  credit_score_summary,
+  digits = 2,
+  caption = "Credit-score summary by fraud status"
+)
+```
+The following faceted histograms compare credit-score distributions between the two fraud-status groups.
+
+```{r credit-score-histogram, fig.width=9, fig.height=5.2, fig.cap="Distribution of credit score by fraud status in the balanced analysis sample."}
+credit_score_plot <- ggplot(
+  credit_score_data,
+  aes(x = credit_score, fill = fraud_status)
+) +
+  geom_histogram(
+    binwidth = 25,
+    colour = "white",
+    alpha = 0.85
+  ) +
+  facet_wrap(~ fraud_status, nrow = 1) +
+  labs(
+    x = "Credit score",
+    y = "Number of transactions"
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(
+    legend.position = "none"
+  )
+
+ggsave(
+  filename = file.path(figures_dir, "credit_score_distribution.png"),
+  plot = credit_score_plot,
+  width = 9,
+  height = 5.2,
+  dpi = 300,
+  bg = "white"
+)
+
+credit_score_plot
+```
+
+The credit-score distributions of fraudulent and non-fraudulent transactions are broadly similar, with considerable overlap between the two groups. No clear visual separation is observed based on credit score alone.
+This suggests that credit score does not appear to be a strong standalone indicator of fraud in this balanced analysis sample.
+
+## Account Age
+Account age is examined as an account-profile characteristic. Comparing account-age distributions between fraud and non-fraud transactions provides a descriptive view of whether account maturity differs across the two fraud-status groups in the balanced analysis sample.
+
+```{r account-age-summary}
+account_age_data <- read_csv(
+  input_data_path,
+  col_select = c(account_age_years, is_fraud),
+  show_col_types = FALSE
+) %>%
+  mutate(
+    fraud_status = factor(
+      if_else(is_fraud == 1, "Fraud", "Non-fraud"),
+      levels = c("Non-fraud", "Fraud")
+    )
+  )
+
+account_age_summary <- account_age_data %>%
+  group_by(fraud_status) %>%
+  summarise(
+    sample_size = n(),
+    mean_age = mean(account_age_years, na.rm = TRUE),
+    med_age = median(account_age_years, na.rm = TRUE),
+    std_age = sd(account_age_years, na.rm = TRUE),
+    min_age = min(account_age_years, na.rm = TRUE),
+    max_age = max(account_age_years, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+knitr::kable(
+  account_age_summary,
+  digits = 2,
+  caption = "Account-age summary by fraud status"
+)
+```
+The following faceted histograms compare account-age distributions between the two fraud-status groups.
+
+```{r account-age-histogram, fig.width=9, fig.height=5.2, fig.cap="Distribution of account age by fraud status in the balanced analysis sample."}
+account_age_plot <- ggplot(
+  account_age_data,
+  aes(x = account_age_years, fill = fraud_status)
+) +
+  geom_histogram(
+    binwidth = 1,
+    colour = "white",
+    alpha = 0.85
+  ) +
+  facet_wrap(~ fraud_status, nrow = 1) +
+  labs(
+    x = "Account age (years)",
+    y = "Number of transactions"
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(
+    legend.position = "none"
+  )
+
+ggsave(
+  filename = file.path(figures_dir, "account_age_distribution.png"),
+  plot = account_age_plot,
+  width = 9,
+  height = 5.2,
+  dpi = 300,
+  bg = "white"
+)
+
+account_age_plot
+```
+Overall, customer profile variables—including customer age, credit score, and account age—exhibit substantial overlap between fraud and non-fraud transactions. These variables alone do not provide clear visual discrimination between the two groups. Therefore, the following section focuses on customer behavioural characteristics, which may offer more informative patterns for exploratory analysis.
+
 # Customer Behavior Analysis
 
 <!-- Placeholder: Explore transaction-frequency and account-behavior variables. -->
@@ -136,3 +277,42 @@ population fraud prevalence.
 # Conclusion
 
 <!-- Placeholder: Recap the analysis, its limitations, and possible next steps. -->
+
+
+```{r eda-screening-numeric, echo=FALSE, fig.width=8, fig.height=4}
+numeric_vars <- c(
+  "customer_age",
+  "credit_score",
+  "account_age_years",
+  "account_balance",
+  "transaction_amount",
+  "transaction_distance",
+  "transaction_freq_monthly",
+  "num_prev_transactions",
+  "time_since_last_transaction",
+  "failed_attempts"
+)
+
+screening_data <- read_csv(
+  input_data_path,
+  show_col_types = FALSE
+) %>%
+  mutate(
+    fraud_status = factor(
+      if_else(is_fraud == 1, "Fraud", "Non-fraud")
+    )
+  )
+
+for (v in numeric_vars) {
+
+  p <- ggplot(
+    screening_data,
+    aes_string(x = v, fill = "fraud_status")
+  ) +
+    geom_density(alpha = 0.4) +
+    labs(title = v) +
+    theme_minimal()
+
+  print(p)
+}
+```
