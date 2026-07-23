@@ -1,0 +1,10 @@
+quality_check,issue_count,issue_percentage
+Missing values (all variables),0,0
+Duplicate transaction_id values,0,0
+Duplicate full rows,0,0
+customer_age < 18,0,0
+transaction_amount <= 0,0,0
+account_balance < 0,0,0
+credit_score outside 300 to 850,0,0
+hour_of_day outside 0 to 23,0,0
+failed_attempts < 0,0,0

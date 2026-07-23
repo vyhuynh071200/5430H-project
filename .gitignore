@@ -1,1 +1,9 @@
-﻿bank_fraud.csv
+bank_fraud.csv
+bank_fraud_prepared.csv
+**/bank_fraud.csv
+**/bank_fraud_prepared.csv
+.DS_Store
+.Rhistory
+*.log
+archive/
+figure/
