@@ -2,23 +2,31 @@
 title: "Exploratory Data Analysis: Customer and Segment Patterns"
 author: "Vy"
 date: "`r Sys.Date()`"
-output:
-  html_document:
-    toc: true
-    toc_float: true
+format: pdf
+execute:
+  warning: false
+  message: false
 ---
-
 ```{r setup, include=FALSE}
-# Load packages needed for the future EDA report.
 suppressPackageStartupMessages({
   library(tidyverse)
-  library(knitr)
-})
+  library(knitr)})
 
-# Define paths so all future inputs and outputs stay separate from keyao_work.
-input_data_path <- "keyao_work/data/sample_bank_fraud.csv"
-figures_dir <- "vy_work/figures"
-tables_dir <- "vy_work/tables"
+input_data_path <- "data/sample_bank_fraud.csv"
+figures_dir <- "figures"
+tables_dir <- "tables"
+
+dir.create(figures_dir, showWarnings = FALSE, recursive = TRUE)
+dir.create(tables_dir, showWarnings = FALSE, recursive = TRUE)
+```
+
+```{r}
+# Load packages needed for the future EDA report.
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  message = FALSE
+)
 ```
 
 # Introduction
@@ -31,7 +39,79 @@ tables_dir <- "vy_work/tables"
 
 # Customer Profile Analysis
 
-<!-- Placeholder: Explore customer demographics and account-profile variables. -->
+Customer age is explored as a foundational customer-profile characteristic.
+This descriptive comparison examines whether age distributions differ between
+fraud and non-fraud transactions in the balanced analysis sample; it does not
+imply that customer age causes fraud.
+
+```{r customer-age-summary}
+
+customer_age_data <- read_csv(
+  input_data_path,
+  col_select = c(customer_age, is_fraud),
+  show_col_types = FALSE
+) %>%
+  mutate(
+    fraud_status = factor(
+      if_else(is_fraud == 1, "Fraud", "Non-fraud"),
+      levels = c("Non-fraud", "Fraud")
+    )
+  )
+
+customer_age_summary <- customer_age_data %>%
+  group_by(fraud_status) %>%
+  summarise(
+    sample_size = n(),
+    mean_age = mean(customer_age, na.rm = TRUE),
+    median_age = median(customer_age, na.rm = TRUE),
+    standard_deviation = sd(customer_age, na.rm = TRUE),
+    minimum_age = min(customer_age, na.rm = TRUE),
+    maximum_age = max(customer_age, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+knitr::kable(
+  customer_age_summary,
+  digits = 2,
+  caption = "Customer-age summary by fraud status"
+)
+```
+
+The following faceted histogram provides a visual comparison of customer-age
+distributions between the two fraud-status groups.
+
+```{r customer-age-histogram, fig.width=8, fig.height=4.5, fig.cap="Distribution of customer age by fraud status in the balanced analysis sample."}
+# Standard faceted-histogram style for future continuous-variable comparisons.
+dir.create(figures_dir, showWarnings = FALSE, recursive = TRUE)
+
+customer_age_plot <- ggplot(
+  customer_age_data,
+  aes(x = customer_age, fill = fraud_status)
+) +
+  geom_histogram(binwidth = 5, colour = "white", alpha = 0.85) +
+  facet_wrap(~ fraud_status, nrow = 1) +
+  labs(
+    x = "Customer age (years)",
+    y = "Number of transactions",
+    fill = "Transaction status"
+  )
+
+ggsave(
+  filename = file.path(figures_dir, "customer_age_distribution.png"),
+  plot = customer_age_plot,
+  width = 9,
+  height = 5.5,
+  dpi = 300,
+  bg = "white"
+)
+
+customer_age_plot
+```
+
+The figure compares customer-age distributions between fraud and non-fraud
+groups in a sample balanced by design. It is intended only for descriptive
+comparison and should not be used to draw causal conclusions or estimate
+population fraud prevalence.
 
 # Customer Behavior Analysis
 
