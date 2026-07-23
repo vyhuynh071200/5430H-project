@@ -1,0 +1,58 @@
+---
+title: "Exploratory Data Analysis: Customer and Segment Patterns"
+author: "Vy"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+# Load packages needed for the future EDA report.
+suppressPackageStartupMessages({
+  library(tidyverse)
+  library(knitr)
+})
+
+# Define paths so all future inputs and outputs stay separate from keyao_work.
+input_data_path <- "keyao_work/data/sample_bank_fraud.csv"
+figures_dir <- "vy_work/figures"
+tables_dir <- "vy_work/tables"
+```
+
+# Introduction
+
+<!-- Placeholder: State the purpose, scope, and complementary focus of this EDA. -->
+
+# Dataset Overview
+
+<!-- Placeholder: Describe the sample dataset, relevant variables, and analysis scope. -->
+
+# Customer Profile Analysis
+
+<!-- Placeholder: Explore customer demographics and account-profile variables. -->
+
+# Customer Behavior Analysis
+
+<!-- Placeholder: Explore transaction-frequency and account-behavior variables. -->
+
+# Geographic Analysis
+
+<!-- Placeholder: Explore country and city as categorical transaction segments. -->
+
+# Multivariate Segment Analysis
+
+<!-- Placeholder: Examine future relationships across customer, behavior, and geographic segments. -->
+
+# Key Findings
+
+<!-- Placeholder: Summarize evidence-based findings after the EDA is completed. -->
+
+# Business Insights
+
+<!-- Placeholder: Translate future findings into relevant business considerations. -->
+
+# Conclusion
+
+<!-- Placeholder: Recap the analysis, its limitations, and possible next steps. -->
