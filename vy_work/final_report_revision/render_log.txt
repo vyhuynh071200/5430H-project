@@ -1,0 +1,19 @@
+﻿Controlled render log
+=====================
+Revision directory: C:/Users/Ziiii/Documents/GitHub/5430H-project/vy_work/final_report_revision
+Input: Exploratory_Fraud_Risk_Patterns_Vy_Revision.Rmd
+Temporary output: rendered_files/Exploratory_Fraud_Risk_Patterns_Vy_Revision.pdf
+Existing draft PDF replacement policy: replace only after successful render
+
+Command output:
+Rscript.exe : Error in loadNamespace(x) : there is no package called 'rmarkdown'
+At line:2 char:598
++ ... globalenv()), quiet=FALSE)"; $output=(& $rscript -e $cmd 2>&1 | Out-S ...
++                                           ~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Error in loadNa...led 'rmarkdown':String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Calls: loadNamespace -> withRestarts -> withOneRestart -> doWithOneRestart
+Execution halted
+
+RscriptExitCode=1
