@@ -8,7 +8,7 @@ affiliation:
     - line:
         - name: "Keyao Li, Student Number: 0895585"
 abstract: |
-  Bank transaction fraud is difficult to examine because fraudulent observations are rare and risk patterns may differ across transaction contexts. This paper uses exploratory data analysis and visualization to investigate which transaction characteristics show visible associations with fraud risk in a synthetic dataset of one million bank transactions. The analysis combines descriptive summaries, within-group fraud-rate comparisons, distribution plots, and a merchant-by-hour heatmap. Fraud accounts for 55,255 transactions, or 5.53% of the full dataset, creating a strongly imbalanced outcome. The clearest visual patterns involve repeated failed attempts, late-night and early-morning timing, international transaction status, recent PIN changes, and merchant category. Transactions with two or more failed attempts have substantially higher fraud rates, while ATM withdrawal, jewelry, and crypto exchange transactions appear elevated across multiple hours. In contrast, weekend status and account balance provide weaker or more cautionary visual separation; location variables were inspected but not retained as main figures. Visualization therefore identifies candidate fraud-risk indicators before predictive modeling, although all findings are associative and based on synthetic data.
+  Bank transaction fraud is difficult to examine because fraudulent observations are rare and risk patterns may differ across transaction contexts. This paper uses exploratory data analysis and visualization to investigate which transaction characteristics show visible associations with fraud risk in a synthetic dataset of one million bank transactions. The analysis combines descriptive summaries, within-group fraud-rate comparisons, distribution plots, and a merchant-by-hour heatmap. Fraud accounts for 55,255 transactions, or 5.53% of the full dataset, creating a strongly imbalanced outcome. The clearest visual patterns involve repeated failed attempts, late-night and early-morning timing, international transaction status, recent PIN changes, and merchant category. Fraud rates also increase monotonically as the selected transaction indicators accumulate. Transactions with two or more failed attempts have substantially higher fraud rates, while ATM withdrawal, jewelry, and crypto exchange transactions appear elevated across multiple hours. In contrast, weekend status and account balance provide weaker or more cautionary visual separation; location variables were inspected but not retained as main figures. Visualization therefore identifies candidate fraud-risk indicators before predictive modeling, although all findings are associative and based on synthetic data.
 keywords: "bank transaction fraud, exploratory data analysis, data visualization, class imbalance, fraud rate"
 output:
   rticles::ieee_article:
@@ -22,6 +22,7 @@ link-citations: true
 header-includes:
   - \usepackage[section]{placeins}
   - \usepackage{booktabs}
+  - \AtBeginDocument{\renewcommand*{\figureautorefname}{Fig.}}
 ---
 
 <!--
@@ -139,8 +140,9 @@ Transactions & Variables & Fraud & Non-fraud & Fraud rate\\
 
 Variables examined include transaction type, hour of day, night and weekend
 indicators, merchant category, failed attempts, account balance, distance from
-home, city, and recent PIN change. Full-data summaries and fraud-rate
-calculations are used whenever `data/transactions.csv` is available.
+home, city, and recent PIN change. All population counts, fraud-rate estimates,
+and confidence intervals reported in the paper were calculated from the full
+dataset.
 
 The variables can be organized into four conceptual groups. Transaction context
 includes domestic or international status, merchant category, payment method,
@@ -212,6 +214,12 @@ city. Third, a multivariate heatmap combined merchant category with hour of day
 to determine whether two contextual dimensions revealed patterns hidden by
 separate marginal summaries.
 
+To summarize the joint appearance of previously identified transaction
+indicators, an unweighted count combined international status, nighttime
+activity, recent PIN change, and two or more failed attempts. This count was
+used only for descriptive multivariate comparison and was not treated as a
+validated predictive score.
+
 The visual encodings were selected for the measurement scale and analytical
 question. Counts are appropriate for showing class imbalance; rate bars support
 fair categorical comparisons; a mosaic plot displays both transaction-type
@@ -228,120 +236,136 @@ predictive accuracy.
 
 \begin{figure}[!htbp]
 
-{\centering \includegraphics[width=\columnwidth]{C:/Users/Ziiii/Documents/GitHub/5430H-project/vy_work/final_report_revision/Exploratory_Fraud_Risk_Patterns_Vy_Revision_files/figure-latex/fig-class-imbalance-1} 
+{\centering \includegraphics[width=\columnwidth]{C:/Users/Ziiii/Documents/GitHub/5430H-project/vy_work/final_report_revision/Exploratory_Fraud_Risk_Patterns_Vy_Revision_files/figure-latex/class-distribution-1} 
 
 }
 
-\caption{Class distribution of transaction status. Fraud represents 5.53\% of the full dataset, indicating a highly imbalanced outcome.}\label{fig:fig-class-imbalance}
+\caption{Class distribution of transaction status. Fraud represents 5.53\% of the full dataset, indicating a highly imbalanced outcome.}\label{fig:class-distribution}
 \end{figure}
 
-Fraud is a minority outcome: the full-data rate is 5.53%, and the non-fraud
-class is more than seventeen times larger. Consequently, later comparisons use
-within-group fraud rates rather than raw counts. The data-quality assessment
-found no missing values, duplicate transaction identifiers, duplicate complete
-rows, or out-of-range values among the checked fields. Therefore, the observed
-patterns are not artifacts of an imputation or row-removal procedure.
+\autoref{fig:class-distribution} shows the strong class imbalance, with fraud
+accounting for 5.53% of the full dataset. The non-fraud class is more than
+seventeen times larger, so later comparisons use within-group fraud rates
+rather than raw counts. The data-quality assessment found no missing values,
+duplicate transaction identifiers, duplicate complete rows, or out-of-range
+values among the checked fields. Therefore, the observed patterns are not
+artifacts of an imputation or row-removal procedure.
 
 ## Transaction Type and Sample Composition
 
 \begin{figure}[!htbp]
 
-{\centering \includegraphics[width=\columnwidth]{C:/Users/Ziiii/Documents/GitHub/5430H-project/vy_work/final_report_revision/Exploratory_Fraud_Risk_Patterns_Vy_Revision_files/figure-latex/fig-transaction-type-mosaic-1} 
+{\centering \includegraphics[width=\columnwidth]{C:/Users/Ziiii/Documents/GitHub/5430H-project/vy_work/final_report_revision/Exploratory_Fraud_Risk_Patterns_Vy_Revision_files/figure-latex/transaction-type-mosaic-1} 
 
 }
 
-\caption{Transaction type and fraud-group membership in the balanced sample. Rectangle widths reflect sample counts; sample shares do not estimate population prevalence.}\label{fig:fig-transaction-type-mosaic}
+\caption{Transaction type and fraud-group membership in the balanced sample. Rectangle widths reflect sample counts; sample shares do not estimate population prevalence.}\label{fig:transaction-type-mosaic}
 \end{figure}
 
-Within the balanced sample, international transactions contain a larger fraud
-share than domestic transactions. Because fraud and non-fraud cases were sampled
-equally, this figure describes sample composition and is not a population fraud
-rate. Specifically, fraud represents 68.1% of sampled international
-transactions but 45.1% of sampled domestic transactions. The difference is
-directionally consistent with the full-data international fraud-rate result,
-but the percentages in Fig. 2 must remain sample-composition measures.
+\autoref{fig:transaction-type-mosaic} shows the transaction-type composition of
+the balanced sample. Fraud represents 68.1% of sampled international
+transactions but 45.1% of sampled domestic transactions. Because fraud and
+non-fraud cases were sampled equally, these percentages describe sample
+composition rather than population fraud rates. The difference is directionally
+consistent with the full-data international fraud-rate result.
 
 ## Binary Transaction Characteristics
 
 \begin{figure}[!htbp]
 
-{\centering \includegraphics[width=\columnwidth]{C:/Users/Ziiii/Documents/GitHub/5430H-project/vy_work/final_report_revision/Exploratory_Fraud_Risk_Patterns_Vy_Revision_files/figure-latex/fig-binary-characteristics-1} 
+{\centering \includegraphics[width=\columnwidth]{C:/Users/Ziiii/Documents/GitHub/5430H-project/vy_work/final_report_revision/Exploratory_Fraud_Risk_Patterns_Vy_Revision_files/figure-latex/binary-characteristics-1} 
 
 }
 
-\caption{Fraud rates across selected binary transaction characteristics. Night transactions and recent PIN changes show higher fraud rates, while weekend status shows little separation.}\label{fig:fig-binary-characteristics}
+\caption{Fraud rates across selected binary transaction characteristics. Night transactions and recent PIN changes show higher fraud rates, while weekend status shows little separation.}\label{fig:binary-characteristics}
 \end{figure}
 
-Night transactions and transactions following a recent PIN change show visibly
-higher fraud rates than their comparison groups. Night transactions have a
-7.96% fraud rate compared with 4.07% during the day. Transactions following a
-recent PIN change reach 8.36%, compared with 5.28% when no recent change is
-recorded. Weekend and weekday rates are nearly equal at 5.57% and 5.51%,
-respectively. This contrast is useful because it shows that not every intuitive
-context variable separates fraud. These differences are candidate visual
-indicators, not evidence of causation.
+\autoref{fig:binary-characteristics} indicates that night transactions and
+transactions with a recent PIN change have higher fraud rates, while weekend
+status shows little separation. Night transactions have a 7.96% fraud rate
+compared with 4.07% during the day. Transactions with a recent PIN change reach
+8.36%, compared with 5.28% when no recent change is recorded. Weekend and
+weekday rates are nearly equal at 5.57% and 5.51%, respectively. This contrast
+shows that not every intuitive context variable separates fraud. These
+differences are candidate visual indicators, not evidence of causation.
 
 ## Account Balance
 
-The fraud group has a somewhat higher median balance in the balanced sample,
-but the distributions overlap substantially. Account balance therefore provides
-weaker standalone separation than failed attempts or transaction context. The
-sample median is approximately \$8,157 for fraud and \$7,390 for non-fraud, but
-the interquartile ranges and violin densities occupy much of the same region.
-This is a useful negative result: a shift in central tendency does not imply
-that the variable is an effective standalone discriminator.
+\autoref{fig:account-balance} shows substantial overlap between the fraud and
+non-fraud account-balance distributions. Although the fraud group has a
+somewhat higher sample median, approximately \$8,157 compared with \$7,390 for
+non-fraud, the interquartile ranges and violin densities occupy much of the
+same region. Account balance therefore provides weaker standalone separation
+than failed attempts or transaction context. This is a useful negative result:
+a shift in central tendency does not imply that the variable is an effective
+standalone discriminator.
 
 \begin{figure}[!htbp]
 
-{\centering \includegraphics[width=0.95\columnwidth]{C:/Users/Ziiii/Documents/GitHub/5430H-project/vy_work/final_report_revision/Exploratory_Fraud_Risk_Patterns_Vy_Revision_files/figure-latex/fig-account-balance-1} 
+{\centering \includegraphics[width=0.95\columnwidth]{C:/Users/Ziiii/Documents/GitHub/5430H-project/vy_work/final_report_revision/Exploratory_Fraud_Risk_Patterns_Vy_Revision_files/figure-latex/account-balance-1} 
 
 }
 
-\caption{Account-balance distribution shapes by fraud group in the balanced sample. Violin width shows density and inset boxes show the median and interquartile range; the balanced sample does not estimate population prevalence.}\label{fig:fig-account-balance}
+\caption{Log-transformed account-balance distributions by fraud group in the balanced sample. Violin width shows density and inset boxes show the median and interquartile range.}\label{fig:account-balance}
 \end{figure}
 
-## Authentication-Related Patterns
+## Failed Attempts Across Transaction Contexts
 
-\begin{figure*}[!t]
 
-{\centering \includegraphics[width=0.94\textwidth]{C:/Users/Ziiii/Documents/GitHub/5430H-project/vy_work/final_report_revision/Exploratory_Fraud_Risk_Patterns_Vy_Revision_files/figure-latex/fig-failed-attempts-1} 
 
-}
-
-\caption{Full-data fraud rates by failed attempts and transaction type. Points show descriptive fraud rates, and vertical bars show 95\% Wilson confidence intervals. The largest increase occurs between one and two failed attempts in both transaction contexts.}\label{fig:fig-failed-attempts}
-\end{figure*}
-
-The full-data comparison shows a threshold-like pattern across both transaction
-contexts. Fraud rates remain comparatively low at zero or one failed attempt
-and increase sharply at two attempts. Rates remain elevated from two attempts
-onward. International transactions have a higher fraud rate at each
-failed-attempt level, while the similar shapes of the two curves suggest a
-consistent failed-attempt pattern rather than a substantially different
-relationship across transaction types. These unadjusted descriptive
-associations do not establish causation.
+\autoref{fig:failed-attempts} shows that the clearest fraud-rate increase occurs
+between one and two failed attempts in both transaction contexts. Domestic
+fraud rates rise from about 4% at zero or one attempt to roughly 14% at two or
+more attempts, while international rates increase from about 9% to around
+19--20%. Because both curves follow a similar shape, the figure suggests a
+consistent failed-attempt pattern together with a higher international fraud
+baseline, rather than a strong interaction.
 
 ## Merchant and Time-Based Patterns
 
-\begin{figure*}[!t]
 
-{\centering \includegraphics[width=0.94\textwidth]{C:/Users/Ziiii/Documents/GitHub/5430H-project/vy_work/final_report_revision/Exploratory_Fraud_Risk_Patterns_Vy_Revision_files/figure-latex/fig-multivariate-patterns-1} 
 
-}
+\autoref{fig:hour-merchant-patterns} highlights the joint patterns of
+transaction hour, international status, and merchant category. Panel A shows
+that international transactions have higher fraud rates than domestic
+transactions across most hours, with both series rising during late-night and
+early-morning periods. Panel B shows that ATM withdrawal, jewelry, and crypto
+exchange remain visually elevated across several hours, whereas most other
+categories cluster at lower rates. Aggregated across hours, the three
+highlighted categories have fraud rates of approximately 8.65--8.74%, compared
+with roughly 4.62--4.84% for most other merchant categories. These descriptive
+associations are candidate indicators within the synthetic dataset, not causal
+evidence.
 
-\caption{Multivariate fraud patterns: (A) hourly fraud rates for domestic and international transactions and (B) merchant-category fraud rates across hours.}\label{fig:fig-multivariate-patterns}
-\end{figure*}
 
-Panel A shows that international transactions have higher fraud rates than
-domestic transactions across most hours within this synthetic dataset. Both
-series also rise during late-night and early-morning periods. Panel B adds
-merchant context: ATM withdrawal, jewelry, and crypto exchange remain visually
-elevated across several hours, whereas most other categories cluster at lower
-rates. Aggregated across hours, the three highlighted categories have fraud
-rates of approximately 8.65--8.74%, compared with roughly 4.62--4.84% for most
-other merchant categories. Together, the panels show an exploratory pattern in
-which transaction timing, international status, and merchant context are
-visually associated with different fraud rates. These associations are
-candidate indicators within the synthetic dataset, not causal evidence.
+
+## Combined Transaction Indicators
+
+\autoref{fig:indicator-count} shows progressively higher fraud rates as the
+number of selected indicators increases, while transactions with three or four
+indicators remain uncommon. Four transaction conditions were considered:
+international status, nighttime activity, recent PIN change, and two or more
+failed attempts. The indicator count records how many of these four conditions
+were present in each transaction, regardless of which specific indicators were
+present.
+
+Transactions with no indicators had a fraud rate of
+2.04%,
+compared with
+6.82%
+for one indicator,
+12.33%
+for two, and
+18.41%
+for three. The four-indicator group reached
+23.96%,
+although it contained only
+455
+transactions and therefore had a wider confidence interval. Transactions with
+three or four indicators represented only
+1.33%
+of valid transactions, indicating that such cases were uncommon but were
+associated with elevated descriptive fraud rates.
 
 ## Summary of Visual Findings
 
@@ -357,7 +381,32 @@ fields, were inspected during EDA; however, they showed weaker or less central
 visual separation and are therefore summarized rather than displayed as main
 figures within the IEEE page limit.
 
-\FloatBarrier
+\begin{figure*}[!t]
+
+{\centering \includegraphics[width=0.94\textwidth]{C:/Users/Ziiii/Documents/GitHub/5430H-project/vy_work/final_report_revision/Exploratory_Fraud_Risk_Patterns_Vy_Revision_files/figure-latex/failed-attempts-1} 
+
+}
+
+\caption{Fraud rates by failed attempts and transaction type, with 95\% Wilson confidence intervals.}\label{fig:failed-attempts}
+\end{figure*}
+
+\begin{figure*}[!t]
+
+{\centering \includegraphics[width=0.94\textwidth]{C:/Users/Ziiii/Documents/GitHub/5430H-project/vy_work/final_report_revision/Exploratory_Fraud_Risk_Patterns_Vy_Revision_files/figure-latex/hour-merchant-patterns-1} 
+
+}
+
+\caption{Hourly fraud rates by transaction type and merchant category.}\label{fig:hour-merchant-patterns}
+\end{figure*}
+
+\begin{figure*}[!t]
+
+{\centering \includegraphics[width=0.96\textwidth]{C:/Users/Ziiii/Documents/GitHub/5430H-project/vy_work/final_report_revision/Exploratory_Fraud_Risk_Patterns_Vy_Revision_files/figure-latex/indicator-count-1} 
+
+}
+
+\caption{Full-data fraud rates and transaction shares by indicator count. Error bars show 95\% Wilson confidence intervals.}\label{fig:indicator-count}
+\end{figure*}
 
 # Discussion
 
@@ -369,23 +418,35 @@ could inform feature selection, monitoring rules, interactions, or later
 predictive experiments. Visual prominence alone does not establish statistical
 significance or operational usefulness.
 
-The results suggest a hierarchy of candidate information. Authentication
-behaviour is represented by failed attempts and recent PIN change; transaction
-context is represented by international status and merchant category; and
-temporal context is represented by night or early-morning activity. These
-signals are interpretable and can be reviewed by a human analyst. In contrast,
-weekend status and account balance provide weaker separation. Including weak
-results is important because an EDA should narrow the candidate set rather than
-merely collect visually interesting charts.
+\autoref{fig:binary-characteristics} shows that nighttime activity and recent
+PIN change provide clearer separation than weekend status.
+\autoref{fig:failed-attempts} indicates that the most visible change occurs
+between one and two failed attempts. Together, the results suggest a hierarchy
+of candidate information. Authentication behaviour is represented by failed
+attempts and recent PIN change; transaction context is represented by
+international status and merchant category; and temporal context is represented
+by night or early-morning activity. These signals are interpretable and can be
+reviewed by a human analyst. In contrast, weekend status and account balance
+provide weaker separation. Including weak results is important because an EDA
+should narrow the candidate set rather than merely collect visually interesting
+charts.
 
-For an operational fraud-monitoring workflow, the findings could motivate
-rules or model features such as an indicator for two or more failed attempts,
-an interaction between merchant category and hour, or additional review when a
+\autoref{fig:hour-merchant-patterns} highlights the combined roles of
+transaction timing, international status, and merchant context. For an
+operational fraud-monitoring workflow, the findings could motivate rules or
+model features such as an indicator for two or more failed attempts, an
+interaction between merchant category and hour, or additional review when a
 recent PIN change coincides with an unusual context. Such uses would require
 validation on out-of-sample real transactions, threshold selection based on
 false-positive costs, and continuous monitoring for changing fraud behaviour.
 The figures should therefore be viewed as hypothesis-generating tools, not as
 decision rules.
+
+\autoref{fig:indicator-count} provides a descriptive synthesis, showing
+progressively higher fraud rates as the selected indicators accumulate. This
+pattern suggests that the selected transaction and authentication contexts
+provide clearer descriptive stratification when considered jointly than when
+viewed only in isolation.
 
 ## Limitations
 
@@ -396,6 +457,10 @@ cannot establish causation, and deliberately balanced sample plots cannot
 estimate population prevalence. The associations should be validated with
 statistical analysis and predictive evaluation that accounts for class
 imbalance.
+
+Because the indicators were selected from the same exploratory analysis, this
+pattern should be interpreted as descriptive synthesis within the synthetic
+dataset rather than independent predictive validation.
 
 The analysis is also cross-sectional. It does not examine how relationships
 change across days, customers, or evolving fraud strategies. Aggregated rates
@@ -412,6 +477,8 @@ represents 5.53% of the full dataset, making rate-based comparisons essential.
 Repeated failed attempts, night and early-morning timing, international status,
 recent PIN changes, and merchant category provide the clearest visual patterns.
 Weekend status and account balance are weaker or more cautionary findings.
+Fraud rates also increased as the selected transaction indicators accumulated,
+providing a compact descriptive synthesis of the preceding EDA patterns.
 
 The study demonstrates why visual design and sampling language matter in an
 imbalanced problem. Full-data rates describe prevalence, while balanced-sample
