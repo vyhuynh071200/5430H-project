@@ -1,0 +1,136 @@
+Vy private final-report revision summary
+========================================
+
+Scope of this update
+--------------------
+Edited only:
+- Exploratory_Fraud_Risk_Patterns_Vy_Revision.Rmd
+- render_log.txt
+- revision_summary.txt
+
+City plot removal
+-----------------
+Removed the entire R Markdown chunk labelled `fig-city-sample`, including:
+- `city_sample_rates`
+- city grouping and transaction counts
+- balanced-sample fraud-share calculation
+- approximate confidence-interval calculations (`se`, `lower`, `upper`)
+- city ordering and `forcats::fct_reorder`
+- the city point/error-bar plot and count labels
+- the city figure caption
+
+Removed the complete city-results paragraph discussing overlapping intervals,
+geographic risk, Osaka, Guadalajara, New York, Berlin, sample sizes, and
+geographic interpretation.
+
+City-related text changes
+-------------------------
+1. Abstract: removed city-level variation as a displayed weak finding and noted
+   that location variables were inspected but not retained as main figures.
+2. Analytical Measures: removed the city confidence-interval description.
+3. Results heading: changed `Account Balance and Geographic Variation` to
+   `Account Balance`.
+4. Summary of Visual Findings: removed city-level variation from displayed
+   weak findings; retained the general statement that location fields were
+   inspected but omitted from main figures.
+5. Discussion: removed city from the displayed weak-result list.
+6. Limitations: removed the balanced-city confidence-interval sentence;
+   retained the broader warning about synthetic location variables.
+7. Conclusion: removed city-level variation from the displayed weak findings.
+
+City remains only in the initial variable inventory and EDA-inspection list,
+which accurately describe variables considered rather than final figures.
+
+Final source figure order
+-------------------------
+1. Class distribution (`fig-class-imbalance`)
+2. Transaction type and sample composition (`fig-transaction-type-mosaic`)
+3. Binary transaction characteristics (`fig-binary-characteristics`)
+4. Failed attempts by transaction context (`fig-failed-attempts`)
+5. Account-balance distribution (`fig-account-balance`)
+6. Merchant and time-based patterns (`fig-multivariate-patterns`)
+
+Layout and float changes
+------------------------
+- Figure 4 remains `fig.env="figure*"` with `fig.pos="!t"` and unchanged
+  statistical analysis.
+- Figure 5 remains single-column. Its interpretation now precedes the chunk,
+  and its caption explicitly identifies the balanced sample and states that it
+  does not estimate population prevalence.
+- Figure 6 remains `fig.env="figure*"` with `fig.pos="!t"`.
+- Added one `\FloatBarrier` between Figure 5 and the Merchant and Time-Based
+  Patterns subsection.
+- No page break, `\newpage`, or `\clearpage` was added.
+
+Page information
+----------------
+Previous page count reported by the user: 8
+New page count: unavailable because the edited source could not be rendered.
+Page containing each revised figure: unavailable.
+References on a separate page: unable to verify for the edited source.
+
+Important PDF status
+--------------------
+The existing draft PDF was not overwritten because the render failed. It still
+has its pre-edit hash and must not be treated as the output of this edited Rmd.
+
+Rendering
+---------
+Attempted from the revision directory with temporary output directed to
+`rendered_files/` and replacement of the root draft PDF conditional on success.
+
+Equivalent render call:
+rmarkdown::render(
+  input = "Exploratory_Fraud_Risk_Patterns_Vy_Revision.Rmd",
+  output_file = "Exploratory_Fraud_Risk_Patterns_Vy_Revision.pdf",
+  output_dir = file.path(revision_dir, "rendered_files"),
+  intermediates_dir = file.path(revision_dir, "rendered_files"),
+  clean = FALSE,
+  envir = new.env(parent = globalenv()),
+  quiet = FALSE
+)
+
+Render result and warning
+-------------------------
+FAILED before document execution:
+`Error in loadNamespace(x): there is no package called 'rmarkdown'`
+
+The currently selected R 4.5.2 installation also lacks knitr, rticles, ggplot2,
+dplyr, tidyr, scales, patchwork, janitor, kableExtra, and tinytex, and no
+pdflatex executable is available. No packages were installed.
+
+Hashes before
+-------------
+Draft Rmd:
+CAC056767EB14911F8C89F84AD7789774ED9E44B1EFD824A5A8C31E2E4E7F455
+Existing draft PDF:
+4247AAEB053987F46B8A656DFFF9221CEF6BBECE7141E15947ECE9E46424A7A0
+Protected final-submission Rmd:
+6BF98E144DF102843368C2953165BEB64FCB762A9B4D03334F258A7B918C86BF
+Protected final-submission PDF:
+3E2BE8982AA08D0EC64E9E9C51AD32585247839E5225A34812595BE6CF295A48
+Protected full dataset:
+6812BF245E31B64B739DF1FC9F6CD25377B08A9822B0246C8CA26EC1A12884CA
+
+Hashes after
+------------
+Draft Rmd:
+9BCAEF6B9862A9B76775255D0CB1C4750AF2F9779BFA764EAED64EC132854039
+Existing draft PDF (preserved because render failed):
+4247AAEB053987F46B8A656DFFF9221CEF6BBECE7141E15947ECE9E46424A7A0
+Protected final-submission Rmd:
+6BF98E144DF102843368C2953165BEB64FCB762A9B4D03334F258A7B918C86BF
+Protected final-submission PDF:
+3E2BE8982AA08D0EC64E9E9C51AD32585247839E5225A34812595BE6CF295A48
+Protected full dataset:
+6812BF245E31B64B739DF1FC9F6CD25377B08A9822B0246C8CA26EC1A12884CA
+
+Git status
+----------
+Before: `?? vy_work/`
+After: `?? vy_work/`
+
+Protection confirmation
+-----------------------
+No tracked diff exists under final_submission/, keyao_work/, or bank_fraud.csv.
+Git history and index were not modified. No source dataset was modified.
