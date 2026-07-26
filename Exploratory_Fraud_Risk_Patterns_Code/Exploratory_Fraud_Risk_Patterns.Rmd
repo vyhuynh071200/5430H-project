@@ -8,20 +8,21 @@ affiliation:
     - line:
         - name: "Keyao Li, Student Number: 0895585"
 abstract: |
-  Bank transaction fraud is difficult to examine because fraudulent observations are rare and risk patterns may differ across transaction contexts. This paper uses exploratory data analysis and visualization to investigate which transaction characteristics show visible associations with fraud risk in a synthetic dataset of one million bank transactions. The analysis combines descriptive summaries, within-group fraud-rate comparisons, distribution plots, and a merchant-by-hour heatmap. Fraud accounts for 55,255 transactions, or 5.53% of the full dataset, creating a strongly imbalanced outcome. The clearest visual patterns involve repeated failed attempts, late-night and early-morning timing, international transaction status, recent PIN changes, and merchant category. Fraud rates also increase monotonically as the selected transaction indicators accumulate. Transactions with two or more failed attempts have substantially higher fraud rates, while ATM withdrawal, jewelry, and crypto exchange transactions appear elevated across multiple hours. In contrast, weekend status and account balance provide weaker or more cautionary visual separation; location variables were inspected but not retained as main figures. Visualization therefore identifies candidate fraud-risk indicators before predictive modeling, although all findings are associative and based on synthetic data.
+  `r if (file.exists(Sys.getenv("BANK_FRAUD_FULL_DATA", unset = "data/transactions.csv"))) {"Bank transaction fraud is difficult to examine because fraudulent observations are rare and risk patterns may differ across transaction contexts. This paper uses exploratory data analysis and visualization to investigate which transaction characteristics show visible associations with fraud risk in a synthetic dataset of one million bank transactions. The analysis combines descriptive summaries, within-group fraud-rate comparisons, distribution plots, and a merchant-by-hour heatmap. Fraud accounts for 55,255 transactions, or 5.53% of the full dataset, creating a strongly imbalanced outcome. The clearest visual patterns involve repeated failed attempts, late-night and early-morning timing, international transaction status, recent PIN changes, and merchant category. Fraud rates also increase monotonically as the selected transaction indicators accumulate. Transactions with two or more failed attempts have substantially higher fraud rates, while ATM withdrawal, jewelry, and crypto exchange transactions appear elevated across multiple hours. In contrast, weekend status and account balance provide weaker or more cautionary visual separation; location variables were inspected but not retained as main figures. Visualization therefore identifies candidate fraud-risk indicators before predictive modeling, although all findings are associative and based on synthetic data."} else {"This demonstration report uses the supplied balanced sample to verify that the submitted source code can read, prepare, summarize, and visualize the data. The sample contains 1,000 fraud and 1,000 non-fraud observations. Its results demonstrate the analysis workflow only and do not reproduce or estimate the population-level findings reported in the final paper."}`
 keywords: "bank transaction fraud, exploratory data analysis, data visualization, class imbalance, fraud rate"
 output:
   rticles::ieee_article:
     keep_tex: true
     with_dblfloatfix: true
     citation_package: natbib
-bibliography: support/references.bib
+bibliography: references.bib
 biblio-style: IEEEtran
 natbiboptions: "numbers"
 link-citations: true
 header-includes:
   - \usepackage[section]{placeins}
   - \usepackage{booktabs}
+  - \usepackage{float}
   - \AtBeginDocument{\renewcommand*{\figureautorefname}{Fig.}}
 ---
 
@@ -36,7 +37,118 @@ suppressPackageStartupMessages({
   library(kableExtra)
 })
 
-source("support/helper_functions.R")
+choose_transaction_data <- function(
+    full_path = "data/transactions.csv",
+    sample_path = "data/sample_transactions.csv") {
+  if (file.exists(full_path)) {
+    return(list(path = full_path, using_sample = FALSE))
+  }
+  if (file.exists(sample_path)) {
+    return(list(path = sample_path, using_sample = TRUE))
+  }
+  stop(
+    "No input data found. Add the supplied data/sample_transactions.csv ",
+    "or provide the full dataset path through BANK_FRAUD_FULL_DATA.",
+    call. = FALSE
+  )
+}
+
+require_columns <- function(data, columns) {
+  missing_columns <- setdiff(columns, names(data))
+  if (length(missing_columns) > 0) {
+    stop(
+      "The input data are missing required columns: ",
+      paste(missing_columns, collapse = ", "),
+      call. = FALSE
+    )
+  }
+  invisible(data)
+}
+
+prepare_transactions <- function(data) {
+  data <- janitor::clean_names(data)
+  require_columns(
+    data,
+    c(
+      "is_fraud", "hour_of_day", "failed_attempts", "merchant_category",
+      "account_balance"
+    )
+  )
+  if (!"is_night_transaction" %in% names(data)) {
+    data <- data |>
+      dplyr::mutate(
+        is_night_transaction = as.integer(hour_of_day <= 6 | hour_of_day >= 22)
+      )
+  }
+  if (!"pin_changed_recently" %in% names(data)) {
+    data$pin_changed_recently <- NA_integer_
+  }
+  if (!"is_weekend" %in% names(data)) {
+    data$is_weekend <- NA_integer_
+  }
+  if (!"is_international" %in% names(data)) {
+    data$is_international <- NA_integer_
+  }
+  data |>
+    dplyr::mutate(
+      is_fraud = as.integer(is_fraud),
+      fraud_label = factor(
+        dplyr::if_else(is_fraud == 1L, "Fraud", "Non-fraud"),
+        levels = c("Non-fraud", "Fraud")
+      ),
+      time_of_day = factor(
+        dplyr::if_else(is_night_transaction == 1L, "Night", "Day"),
+        levels = c("Day", "Night")
+      ),
+      pin_change_status = factor(
+        dplyr::case_when(
+          pin_changed_recently == 1L ~ "PIN Changed",
+          pin_changed_recently == 0L ~ "No PIN Change",
+          TRUE ~ NA_character_
+        ),
+        levels = c("No PIN Change", "PIN Changed")
+      ),
+      weekend_status = factor(
+        dplyr::case_when(
+          is_weekend == 1L ~ "Weekend",
+          is_weekend == 0L ~ "Weekday",
+          TRUE ~ NA_character_
+        ),
+        levels = c("Weekday", "Weekend")
+      ),
+      transaction_type = factor(
+        dplyr::case_when(
+          is_international == 1L ~ "International",
+          is_international == 0L ~ "Domestic",
+          TRUE ~ NA_character_
+        ),
+        levels = c("Domestic", "International")
+      )
+    )
+}
+
+fraud_rate_by <- function(data, variable) {
+  data |>
+    dplyr::filter(!is.na({{ variable }}), !is.na(is_fraud)) |>
+    dplyr::group_by({{ variable }}) |>
+    dplyr::summarise(
+      total_transactions = dplyr::n(),
+      fraud_count = sum(is_fraud == 1L),
+      fraud_rate = mean(is_fraud == 1L),
+      .groups = "drop"
+    )
+}
+
+paper_theme <- function(base_size = 9) {
+  ggplot2::theme_minimal(base_size = base_size) +
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(face = "bold", size = base_size + 1),
+      plot.subtitle = ggplot2::element_text(size = base_size),
+      axis.title = ggplot2::element_text(face = "plain"),
+      panel.grid.minor = ggplot2::element_blank(),
+      legend.position = "bottom"
+    )
+}
 
 knitr::opts_chunk$set(
   echo = FALSE,
@@ -116,13 +228,300 @@ invalid_values <- tibble::tibble(
 )
 ```
 
-```{r sample-warning, results="asis"}
+```{r sample-warning, results="asis", fig.width=3.45, fig.height=4.10, out.width="\\columnwidth", fig.pos="!htbp"}
 if (using_sample_only) {
-  cat(
-    "> **Demonstration-data warning:** `data/transactions.csv` was not found. ",
-    "This render uses the balanced sample only. Its figures demonstrate the ",
-    "code workflow and must not be interpreted as population prevalence.\n\n"
+  stopifnot(
+    nrow(df) == 2000L,
+    sum(df$is_fraud == 1L) == 1000L,
+    sum(df$is_fraud == 0L) == 1000L
   )
+
+  cat(
+    "\\section{Sample Demonstration Mode}\n\n",
+    "\\textbf{Important:} The full dataset was not supplied. This render uses the ",
+    "balanced 2,000-row sample to demonstrate that the submitted source code ",
+    "runs successfully. All seven figure types are generated from the sample. ",
+    "Their values intentionally differ from the final paper and do not estimate ",
+    "population prevalence. This report verifies the workflow only; the submitted ",
+    "final PDF contains the authoritative full-data findings.\n\n",
+    "\\subsection{Input and Data Preparation}\n\n"
+  )
+
+  sample_summary_display <- df |>
+    dplyr::summarise(
+      Rows = dplyr::n(),
+      Variables = ncol(transactions_raw),
+      Fraud = sum(is_fraud == 1L),
+      `Non-fraud` = sum(is_fraud == 0L)
+    )
+  print(
+    knitr::kable(
+      sample_summary_display,
+      format = "latex",
+      booktabs = TRUE
+    )
+  )
+
+  sample_theme <- paper_theme(base_size = 9) +
+    theme(
+      plot.title = element_text(size = 11),
+      plot.subtitle = element_text(size = 9),
+      legend.position = "bottom",
+      plot.margin = margin(6, 8, 6, 10)
+    )
+
+  cat("\n\n\\subsection{Figure 1: Class Composition}\n\n")
+  class_summary <- df |>
+    dplyr::count(fraud_label, name = "Transactions") |>
+    dplyr::mutate(Share = Transactions / sum(Transactions))
+  print(
+    ggplot(class_summary, aes(fraud_label, Transactions, fill = fraud_label)) +
+      geom_col(width = 0.65, show.legend = FALSE) +
+      geom_text(
+        aes(label = paste0(scales::comma(Transactions), " (",
+                           scales::percent(Share), ")")),
+        vjust = -0.4
+      ) +
+      scale_fill_manual(values = fraud_colours) +
+      scale_y_continuous(expand = expansion(mult = c(0, 0.12))) +
+      labs(
+        title = "Fig. 1. Class Composition",
+        subtitle = "Sample demonstration: balanced by design",
+        x = NULL,
+        y = "Transactions"
+      ) +
+      sample_theme
+  )
+
+  cat("\n\n\\subsection{Figure 2: Transaction-Type Composition}\n\n")
+  transaction_type_summary <- df |>
+    dplyr::filter(!is.na(transaction_type)) |>
+    dplyr::count(transaction_type, fraud_label, name = "Transactions") |>
+    dplyr::group_by(transaction_type) |>
+    dplyr::mutate(WithinTypeShare = Transactions / sum(Transactions)) |>
+    dplyr::ungroup()
+  print(
+    ggplot(
+      transaction_type_summary,
+      aes(transaction_type, WithinTypeShare, fill = fraud_label)
+    ) +
+      geom_col() +
+      scale_fill_manual(values = fraud_colours) +
+      scale_y_continuous(labels = scales::percent) +
+      labs(
+        title = "Fig. 2. Transaction-Type Composition",
+        subtitle = "Sample demonstration: within-type shares",
+        x = "Transaction type",
+        y = "Within-type sample share",
+        fill = NULL
+      ) +
+      sample_theme
+  )
+
+  cat("\n\n\\subsection{Figure 3: Binary Characteristics}\n\n")
+  sample_binary_plot <- function(data, variable, title) {
+    rate_data <- fraud_rate_by(data, {{ variable }})
+    ggplot(rate_data, aes({{ variable }}, fraud_rate, fill = {{ variable }})) +
+      geom_col(width = 0.65, show.legend = FALSE) +
+      geom_text(
+        aes(label = scales::percent(fraud_rate, accuracy = 0.1)),
+        vjust = -0.3, size = 3
+      ) +
+      scale_y_continuous(
+        labels = scales::percent,
+        limits = c(0, max(rate_data$fraud_rate) * 1.35),
+        expand = expansion(mult = c(0, 0))
+      ) +
+      scale_fill_manual(values = c("#4C78A8", "#E45756")) +
+      labs(title = title, x = NULL, y = "Sample fraud share") +
+      sample_theme +
+      theme(axis.text.x = element_text(angle = 10, hjust = 1))
+  }
+  print(
+    patchwork::wrap_plots(
+      list(
+        sample_binary_plot(df, time_of_day, "Time of Day"),
+        sample_binary_plot(df, pin_change_status, "PIN Change"),
+        sample_binary_plot(df, weekend_status, "Weekend Status")
+      ),
+      ncol = 1
+    ) +
+      patchwork::plot_annotation(
+        title = "Fig. 3. Binary Characteristics",
+        subtitle = "Sample demonstration; percentages are not\npopulation rates"
+      )
+  )
+
+  cat("\n\n\\subsection{Figure 4: Account-Balance Distribution}\n\n")
+  print(
+    ggplot(df, aes(fraud_label, log1p(account_balance), fill = fraud_label)) +
+      geom_violin(alpha = 0.65, trim = FALSE, show.legend = FALSE) +
+      geom_boxplot(width = 0.16, outlier.shape = NA, show.legend = FALSE) +
+      scale_fill_manual(values = fraud_colours) +
+      labs(
+        title = "Fig. 4. Account-Balance Distribution",
+        subtitle = "Sample demonstration",
+        x = NULL,
+        y = "Log account balance"
+      ) +
+      sample_theme
+  )
+
+  cat("\n\n\\subsection{Figure 5: Failed Attempts by Transaction Context}\n\n")
+  sample_wilson_z <- stats::qnorm(0.975)
+  sample_failed_rates <- df |>
+    dplyr::filter(
+      !is.na(failed_attempts),
+      !is.na(transaction_type),
+      !is.na(is_fraud)
+    ) |>
+    dplyr::group_by(transaction_type, failed_attempts) |>
+    dplyr::summarise(
+      n = dplyr::n(),
+      fraud = sum(is_fraud == 1L),
+      rate = mean(is_fraud == 1L),
+      .groups = "drop"
+    ) |>
+    dplyr::mutate(
+      denominator = 1 + sample_wilson_z^2 / n,
+      centre = (rate + sample_wilson_z^2 / (2 * n)) / denominator,
+      half_width = sample_wilson_z * sqrt(
+        rate * (1 - rate) / n + sample_wilson_z^2 / (4 * n^2)
+      ) / denominator,
+      lower = pmax(0, centre - half_width),
+      upper = pmin(1, centre + half_width)
+    )
+  print(
+    ggplot(
+      sample_failed_rates,
+      aes(failed_attempts, rate, colour = transaction_type, group = transaction_type)
+    ) +
+      geom_line(linewidth = 0.7) +
+      geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.12) +
+      geom_point(size = 2) +
+      facet_wrap(~ transaction_type, nrow = 1) +
+      scale_colour_manual(
+        values = c("Domestic" = "#4C78A8", "International" = "#E45756"),
+        guide = "none"
+      ) +
+      scale_x_continuous(breaks = 0:5) +
+      scale_y_continuous(labels = scales::percent) +
+      labs(
+        title = "Fig. 5. Failed Attempts by Context",
+        subtitle = "Sample demonstration with wide\nuncertainty intervals",
+        x = "Failed attempts",
+        y = "Sample fraud share"
+      ) +
+      sample_theme
+  )
+
+  cat("\n\n\\subsection{Figure 6: Merchant and Time Patterns}\n\n")
+  sample_hour_rates <- df |>
+    dplyr::filter(!is.na(hour_of_day), !is.na(transaction_type)) |>
+    dplyr::group_by(hour_of_day, transaction_type) |>
+    dplyr::summarise(rate = mean(is_fraud == 1L), .groups = "drop")
+  p_sample_hour <- ggplot(
+    sample_hour_rates,
+    aes(hour_of_day, rate, colour = transaction_type)
+  ) +
+    geom_line(linewidth = 0.7) +
+    geom_point(size = 1) +
+    scale_colour_manual(
+      values = c("Domestic" = "#4C78A8", "International" = "#E45756")
+    ) +
+    scale_x_continuous(breaks = seq(0, 23, 3)) +
+    scale_y_continuous(labels = scales::percent) +
+    labs(
+      title = "Hourly pattern",
+      x = "Hour of day",
+      y = "Fraud share",
+      colour = NULL
+    ) +
+    sample_theme
+
+  sample_merchant_rates <- df |>
+    dplyr::filter(!is.na(hour_of_day), !is.na(merchant_category)) |>
+    dplyr::group_by(merchant_category, hour_of_day) |>
+    dplyr::summarise(rate = mean(is_fraud == 1L), .groups = "drop")
+  p_sample_merchant <- ggplot(
+    sample_merchant_rates,
+    aes(hour_of_day, forcats::fct_rev(merchant_category), fill = rate)
+  ) +
+    geom_tile(colour = "white", linewidth = 0.12) +
+    scale_x_continuous(breaks = seq(0, 23, 3), expand = c(0, 0)) +
+    scale_fill_gradient(
+      low = "#17324D", high = "#56B1F7", labels = scales::percent
+    ) +
+    labs(
+      title = "Merchant-by-hour heatmap",
+      x = "Hour of day",
+      y = "Merchant category",
+      fill = "Sample share"
+    ) +
+    sample_theme +
+    theme(axis.text.y = element_text(size = 7))
+  print(
+    p_sample_hour / p_sample_merchant +
+      patchwork::plot_layout(heights = c(0.9, 1.2))
+  )
+
+  cat("\n\n\\subsection{Figure 7: Indicator Accumulation}\n\n")
+  sample_indicator_summary <- df |>
+    dplyr::filter(
+      !is.na(is_international),
+      !is.na(is_night_transaction),
+      !is.na(pin_changed_recently),
+      !is.na(failed_attempts)
+    ) |>
+    dplyr::mutate(
+      indicator_count =
+        as.integer(is_international == 1L) +
+        as.integer(is_night_transaction == 1L) +
+        as.integer(pin_changed_recently == 1L) +
+        as.integer(failed_attempts >= 2L)
+    ) |>
+    dplyr::group_by(indicator_count) |>
+    dplyr::summarise(
+      n = dplyr::n(),
+      rate = mean(is_fraud == 1L),
+      .groups = "drop"
+    ) |>
+    dplyr::mutate(share = n / sum(n))
+  p_sample_indicator_rate <- ggplot(
+    sample_indicator_summary,
+    aes(indicator_count, rate)
+  ) +
+    geom_line(colour = "#E45756", linewidth = 0.8) +
+    geom_point(colour = "#E45756", size = 2.2) +
+    scale_x_continuous(breaks = 0:4) +
+    scale_y_continuous(labels = scales::percent) +
+    labs(x = "Indicator count", y = "Sample fraud share") +
+    sample_theme
+  p_sample_indicator_volume <- ggplot(
+    sample_indicator_summary,
+    aes(factor(indicator_count), share)
+  ) +
+    geom_col(fill = "#4C78A8") +
+    scale_y_continuous(labels = scales::percent) +
+    labs(x = "Indicator count", y = "Sample transaction share") +
+    sample_theme
+  print(
+    p_sample_indicator_rate + p_sample_indicator_volume +
+      patchwork::plot_annotation(
+        title = "Fig. 7. Indicator Accumulation",
+        subtitle = "Sample demonstration; not a validated score"
+      )
+  )
+
+  cat("\n\n\\section{Verification Result}\n\n")
+  cat(
+    "The supplied sample was read successfully, all required columns and ",
+    "balanced class counts were confirmed, and all seven figure types were ",
+    "generated. The figures verify executable code only and must not be used ",
+    "as population estimates.\n\n",
+    "\\textbf{Sample code verification passed.}\n"
+  )
+  knitr::knit_exit()
 }
 ```
 

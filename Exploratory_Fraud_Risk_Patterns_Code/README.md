@@ -1,21 +1,18 @@
-# Exploratory Fraud Risk Patterns — Source Code
+# Exploratory Fraud Risk Patterns — Code
 
-## Submitted files
+## Contents
 
-- `Exploratory_Fraud_Risk_Patterns.Rmd` — complete IEEE paper and analysis source
-- `Sample_Verification_Report.qmd` — runnable sample-data verification report
+- `Exploratory_Fraud_Risk_Patterns.Rmd` — self-contained source code
+- `references.bib` — references used by the IEEE paper
 - `data/sample_transactions.csv` — balanced 2,000-row sample
-- `support/helper_functions.R` — reusable preparation and plotting functions
-- `support/references.bib` — bibliography used by the paper
 
-The original one-million-row Kaggle dataset is intentionally excluded from the
-submission. The assignment requests a small runnable sample rather than the
-entire dataset.
+All data preparation, validation, summary, and plotting functions are included
+directly in the R Markdown source.
 
 ## Required software
 
 - R 4.2 or newer
-- Quarto
+- Pandoc
 - A LaTeX distribution such as TinyTeX
 
 Install the required R packages:
@@ -27,36 +24,33 @@ install.packages(c(
 ))
 ```
 
-## Run the supplied sample
+## Run with the supplied sample
 
-Open a terminal in this folder and run:
+Open `Exploratory_Fraud_Risk_Patterns.Rmd` in RStudio and click **Knit**.
 
-```bash
-quarto render Sample_Verification_Report.qmd --to pdf
-```
-
-Successful execution creates:
-
-```text
-Sample_Verification_Report.pdf
-```
-
-This report confirms that the submitted code can read, prepare, summarize, and
-visualize the supplied data. Because the sample is deliberately balanced, its
-percentages are demonstrations only and do not reproduce the population
-estimates in the final paper.
-
-## Reproduce the final IEEE paper
-
-The full Kaggle dataset is required to reproduce the final paper's population
-counts, fraud rates, confidence intervals, and indicator-accumulation analysis.
-Set the full dataset path and render:
+Alternatively, open a terminal in this folder and run:
 
 ```bash
-BANK_FRAUD_FULL_DATA="/absolute/path/to/bank_fraud.csv" \
-RSTUDIO_PANDOC="/path/to/pandoc/folder" \
 Rscript -e 'rmarkdown::render("Exploratory_Fraud_Risk_Patterns.Rmd")'
 ```
 
-Without the full dataset, use `Sample_Verification_Report.qmd` to verify the
-submitted sample workflow.
+When the full dataset is not present, the Rmd automatically selects
+`data/sample_transactions.csv` and generates a clearly labelled sample
+demonstration PDF. The balanced sample verifies that the submitted source code
+can read, prepare, summarize, and visualize the data. Its percentages do not
+estimate population prevalence or reproduce the final paper's full-data
+results.
+
+## Reproduce the final IEEE paper
+
+Set `BANK_FRAUD_FULL_DATA` to the absolute path of the original Kaggle CSV, then
+render the same Rmd:
+
+```bash
+BANK_FRAUD_FULL_DATA="/absolute/path/to/bank_fraud.csv" \
+Rscript -e 'rmarkdown::render("Exploratory_Fraud_Risk_Patterns.Rmd")'
+```
+
+With the full dataset available, the Rmd automatically generates the complete
+IEEE paper, including population counts, fraud rates, confidence intervals,
+and the indicator-accumulation analysis.
