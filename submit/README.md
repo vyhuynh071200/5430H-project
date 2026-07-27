@@ -26,10 +26,20 @@ install.packages(c(
 
 ## Run with the supplied sample
 
+The submitted R Markdown file uses:
+
+`data/sample_transactions.csv`
+
 Open `Exploratory_Fraud_Risk_Patterns.Rmd` in RStudio and click **Knit**.
 
 Alternatively, open a terminal in this folder and run:
 
+### For Windows: 
+```powershell
+Rscript -e "rmarkdown::render('Exploratory_Fraud_Risk_Patterns.Rmd')"
+```
+
+### For macOS and Linux:
 ```bash
 Rscript -e 'rmarkdown::render("Exploratory_Fraud_Risk_Patterns.Rmd")'
 ```
@@ -41,16 +51,3 @@ can read, prepare, summarize, and visualize the data. Its percentages do not
 estimate population prevalence or reproduce the final paper's full-data
 results.
 
-## Reproduce the final IEEE paper
-
-Set `BANK_FRAUD_FULL_DATA` to the absolute path of the original Kaggle CSV, then
-render the same Rmd:
-
-```bash
-BANK_FRAUD_FULL_DATA="/absolute/path/to/bank_fraud.csv" \
-Rscript -e 'rmarkdown::render("Exploratory_Fraud_Risk_Patterns.Rmd")'
-```
-
-With the full dataset available, the Rmd automatically generates the complete
-IEEE paper, including population counts, fraud rates, confidence intervals,
-and the indicator-accumulation analysis.
