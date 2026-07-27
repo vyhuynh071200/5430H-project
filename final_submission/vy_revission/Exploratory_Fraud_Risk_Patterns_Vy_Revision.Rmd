@@ -15,7 +15,7 @@ output:
     keep_tex: true
     with_dblfloatfix: true
     citation_package: natbib
-bibliography: support/references.bib
+bibliography: references.bib
 biblio-style: IEEEtran
 natbiboptions: "numbers"
 link-citations: true
@@ -43,7 +43,7 @@ suppressPackageStartupMessages({
   library(kableExtra)
 })
 
-source("support/helper_functions.R")
+source("helper_functions.R")
 
 knitr::opts_chunk$set(
   echo = FALSE,
@@ -60,13 +60,12 @@ fraud_colours <- c("Non-fraud" = "#4C78A8", "Fraud" = "#E45756")
 ```{r read-and-prepare-data, include=FALSE}
 data_choice <- choose_transaction_data(
   full_path = "../../bank_fraud.csv",
-  sample_path = "support/sample_transactions.csv"
+  sample_path = "data/sample_transactions.csv"
 )
 transactions_raw <- readr::read_csv(data_choice$path, show_col_types = FALSE)
 df <- prepare_transactions(transactions_raw)
 using_sample_only <- data_choice$using_sample
-
-sample_path <- "support/sample_transactions.csv"
+sample_path <- "data/sample_transactions.csv"
 if (file.exists(sample_path)) {
   sample_df <- readr::read_csv(sample_path, show_col_types = FALSE) |>
     prepare_transactions()
@@ -75,7 +74,12 @@ if (file.exists(sample_path)) {
   sample_df <- df |>
     dplyr::filter(is_fraud %in% c(0L, 1L)) |>
     dplyr::group_by(is_fraud) |>
-    dplyr::slice_sample(n = min(1000L, dplyr::n())) |>
+    dplyr::group_modify(
+  ~ dplyr::slice_sample(
+    .x,
+    n = min(1000L, nrow(.x))
+  )
+) |>
     dplyr::ungroup()
 }
 
@@ -275,8 +279,8 @@ population prevalence.
 
 The paper is written as an executable R Markdown document. The document reads
 the CSV data, standardizes variables, calculates every displayed summary, and
-generates each figure during rendering. Supporting functions are stored in a
-small sourced R file. No static screenshot is used as an analytical result.
+generates each figure during rendering. Supporting functions are defined directly in the R Markdown source.
+No static screenshot is used as an analytical result.
 This design makes the relationship among data, calculations, figures, and
 written interpretations auditable.
 
