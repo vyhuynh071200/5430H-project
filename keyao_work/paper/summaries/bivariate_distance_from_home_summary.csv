@@ -1,3 +1,0 @@
-fraud_status,total_transactions,fraud_count,fraud_rate,median_distance_km,mean_distance_km
-Non-fraud,944745,0,0,13.9,20.01165446760767
-Fraud,55255,55255,1,13.9,19.979719482399794

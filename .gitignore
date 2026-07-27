@@ -7,3 +7,8 @@ bank_fraud_prepared.csv
 *.log
 archive/
 figure/
+
+# Generated report outputs and render caches
+Exploratory_Fraud_Risk_Patterns_Code/*_files/
+Exploratory_Fraud_Risk_Patterns_Code/*.tex
+Exploratory_Fraud_Risk_Patterns_Code/*.pdf
