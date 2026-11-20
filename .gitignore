@@ -12,3 +12,6 @@ figure/
 Exploratory_Fraud_Risk_Patterns_Code/*_files/
 Exploratory_Fraud_Risk_Patterns_Code/*.tex
 Exploratory_Fraud_Risk_Patterns_Code/*.pdf
+
+# Standalone EDA outputs
+outputs/
