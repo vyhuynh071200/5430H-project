@@ -4,9 +4,9 @@ affiliation:
   wide: true
   author_multiline:
     - line:
-        - name: "Ngoc Khanh Vy Huynh, Student Number: 0908036"
+        - name: "Ngoc Khanh Vy Huynh"
     - line:
-        - name: "Keyao Li, Student Number: 0895585"
+        - name: "Keyao Li"
 abstract: |
   `r if (file.exists(Sys.getenv("BANK_FRAUD_FULL_DATA", unset = "data/transactions.csv"))) {"Bank transaction fraud is difficult to examine because fraudulent observations are rare and risk patterns may differ across transaction contexts. This paper uses exploratory data analysis and visualization to investigate which transaction characteristics show visible associations with fraud risk in a synthetic dataset of one million bank transactions. The analysis combines descriptive summaries, within-group fraud-rate comparisons, distribution plots, and a merchant-by-hour heatmap. Fraud accounts for 55,255 transactions, or 5.53% of the full dataset, creating a strongly imbalanced outcome. The clearest visual patterns involve repeated failed attempts, late-night and early-morning timing, international transaction status, recent PIN changes, and merchant category. Fraud rates also increase monotonically as the selected transaction indicators accumulate. Transactions with two or more failed attempts have substantially higher fraud rates, while ATM withdrawal, jewelry, and crypto exchange transactions appear elevated across multiple hours. In contrast, weekend status and account balance provide weaker or more cautionary visual separation; location variables were inspected but not retained as main figures. Visualization therefore identifies candidate fraud-risk indicators before predictive modeling, although all findings are associative and based on synthetic data."} else {"This demonstration report uses the supplied balanced sample to verify that the submitted source code can read, prepare, summarize, and visualize the data. The sample contains 1,000 fraud and 1,000 non-fraud observations. Its results demonstrate the analysis workflow only and do not reproduce or estimate the population-level findings reported in the final paper."}`
 keywords: "bank transaction fraud, exploratory data analysis, data visualization, class imbalance, fraud rate"
