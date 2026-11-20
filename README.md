@@ -23,6 +23,13 @@ The project's R Markdown report states that **5.53%** of transactions in the ful
 
 Weekend status and account balance showed weaker visual separation. These are **observational, dataset-specific associations**, not independently validated predictive factors or evidence of causation.
 
+## Portfolio-ready code
+
+- **[Standalone R analysis](./analysis/fraud_risk_eda.R)** — a shorter, documented script with schema checks and tidy descriptive outputs.
+- [How to run the standalone analysis](./analysis/README.md)
+
+The standalone script is designed to read the supplied balanced sample without modifying the original academic analysis. Its execution has not yet been verified in an R runtime.
+
 ## Reproducibility: an important distinction
 - **[Source R Markdown](./submit/Exploratory_Fraud_Risk_Patterns.Rmd)**
 - **[Sample data and run instructions](./submit/README.md)**
@@ -45,4 +52,4 @@ The full dataset is not bundled as the default sample; the code can take a full 
 - Additional independent validation would be needed before operational recommendations.
 
 ---
-*Research and reproducible exploratory-analysis project by Vy Huynh.*
+*Academic analysis by Ngoc Khanh Vy Huynh and Keyao Li. Portfolio documentation and standalone demonstration code prepared for technical review.*
